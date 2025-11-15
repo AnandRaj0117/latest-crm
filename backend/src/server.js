@@ -4,6 +4,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const connectDB = require('./config/database');
+const taskRoutes = require('./routes/taskRoutes');
+const noteRoutes = require('./routes/noteRoutes');
+
 
 // Initialize express app
 const app = express();
@@ -14,7 +17,7 @@ connectDB();
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:4000',
   credentials: true
 }));
 app.use(morgan('dev')); // Logging
@@ -46,6 +49,8 @@ app.use('/api/leads', require('./routes/leads'));
 app.use('/api/accounts', require('./routes/accounts'));
 app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/opportunities', require('./routes/opportunities'));
+app.use('/api/tasks', taskRoutes);
+app.use('/api/notes', noteRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -67,7 +72,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });

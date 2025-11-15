@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { leadService } from '../services/leadService';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,7 @@ import TooltipButton from '../components/common/TooltipButton';
 import '../styles/crm.css';
 
 const Leads = () => {
+  const navigate = useNavigate();
   const { user, hasPermission } = useAuth();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,25 +33,40 @@ const Leads = () => {
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showConvertModal, setShowConvertModal] = useState(false);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
-  const [selectedLead, setSelectedLead] = useState(null);
 
-  // Form data
+  // Form data - Complete Zoho fields
   const [formData, setFormData] = useState({
+    // Lead Information
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
+    mobilePhone: '',
+    fax: '',
     company: '',
     jobTitle: '',
-    leadSource: 'Other',
-    leadStatus: 'New',
-    rating: 'Warm',
-    industry: '',
     website: '',
+    leadSource: '',
+    leadStatus: '',
+    industry: '',
+    numberOfEmployees: '',
+    annualRevenue: '',
+    rating: '',
+    emailOptOut: false,
+    skypeId: '',
+    secondaryEmail: '',
+    twitter: '',
+    // Address Information
+    street: '',
+    city: '',
+    state: '',
+    country: '',
+    zipCode: '',
+    flatHouseNo: '',
+    latitude: '',
+    longitude: '',
+    // Description
     description: ''
   });
 
@@ -67,18 +84,8 @@ const Leads = () => {
         ...filters
       });
 
-      console.log('=== LEAD RESPONSE DEBUG ===');
-      console.log('Full response:', response);
-      console.log('response.success:', response?.success);
-      console.log('response.data:', response?.data);
-      console.log('response.data.leads:', response?.data?.leads);
-      console.log('Type of response:', typeof response);
-      console.log('Is array?', Array.isArray(response));
-
-      // Check if response has the expected structure
       if (response && response.success === true && response.data) {
         const leadsData = response.data.leads || [];
-        console.log('Setting leads:', leadsData);
         setLeads(leadsData);
         setPagination(prev => ({
           ...prev,
@@ -86,11 +93,10 @@ const Leads = () => {
           pages: response.data.pagination?.pages || 0
         }));
       } else {
-        console.log('Response validation failed - setting error');
-        setError(response?.message || 'Failed to load leads - invalid response');
+        setError(response?.message || 'Failed to load leads');
       }
     } catch (err) {
-      console.error('Load leads CATCH error:', err);
+      console.error('Load leads error:', err);
       setError(err.response?.data?.message || err.message || 'Failed to load leads');
     } finally {
       setLoading(false);
@@ -112,164 +118,9 @@ const Leads = () => {
     }
   };
 
-  const handleUpdateLead = async (e) => {
-    e.preventDefault();
-    try {
-      setError('');
-      await leadService.updateLead(selectedLead._id, formData);
-      setSuccess('Lead updated successfully!');
-      setShowEditModal(false);
-      setSelectedLead(null);
-      resetForm();
-      loadLeads();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update lead');
-    }
-  };
-
-  const handleDeleteLead = async () => {
-    try {
-      setError('');
-      await leadService.deleteLead(selectedLead._id);
-      setSuccess('Lead deleted successfully!');
-      setShowDeleteModal(false);
-      setSelectedLead(null);
-      loadLeads();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete lead');
-    }
-  };
-
   const openCreateModal = () => {
     resetForm();
     setShowCreateModal(true);
-  };
-
-  const openEditModal = (lead) => {
-    setSelectedLead(lead);
-    setFormData({
-      firstName: lead.firstName,
-      lastName: lead.lastName,
-      email: lead.email,
-      phone: lead.phone || '',
-      company: lead.company || '',
-      jobTitle: lead.jobTitle || '',
-      leadSource: lead.leadSource,
-      leadStatus: lead.leadStatus,
-      rating: lead.rating,
-      industry: lead.industry || '',
-      website: lead.website || '',
-      description: lead.description || ''
-    });
-    setShowEditModal(true);
-  };
-
-  const openDeleteModal = (lead) => {
-    setSelectedLead(lead);
-    setShowDeleteModal(true);
-  };
-
-  // Conversion form state
-  const [conversionData, setConversionData] = useState({
-    createAccount: true,
-    createContact: true,
-    createOpportunity: false,
-    accountName: '',
-    opportunityName: '',
-    opportunityAmount: '',
-    closeDate: ''
-  });
-
-  const openConvertModal = (lead) => {
-    setSelectedLead(lead);
-    // Pre-fill conversion data
-    setConversionData({
-      createAccount: true,
-      createContact: true,
-      createOpportunity: false,
-      accountName: lead.company || `${lead.firstName} ${lead.lastName}`,
-      opportunityName: `${lead.company || lead.firstName + ' ' + lead.lastName} - Opportunity`,
-      opportunityAmount: '',
-      closeDate: ''
-    });
-    setShowConvertModal(true);
-  };
-
-  const handleConversionChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setConversionData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
-
-  const handleConvertLead = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    try {
-      const payload = {
-        createAccount: conversionData.createAccount,
-        createContact: conversionData.createContact,
-        accountData: conversionData.createAccount ? {
-          accountName: conversionData.accountName,
-          accountType: 'Customer',
-          industry: selectedLead.industry,
-          website: selectedLead.website,
-          phone: selectedLead.phone,
-          email: selectedLead.email,
-          street: selectedLead.street,
-          city: selectedLead.city,
-          state: selectedLead.state,
-          country: selectedLead.country,
-          zipCode: selectedLead.zipCode
-        } : {},
-        contactData: conversionData.createContact ? {
-          firstName: selectedLead.firstName,
-          lastName: selectedLead.lastName,
-          email: selectedLead.email,
-          phone: selectedLead.phone,
-          jobTitle: selectedLead.jobTitle
-        } : {}
-      };
-
-      const response = await leadService.convertLead(selectedLead._id, payload);
-
-      if (response.success) {
-        setSuccess('Lead converted successfully!');
-        setShowConvertModal(false);
-        loadLeads();
-
-        // If creating opportunity, handle that
-        if (conversionData.createOpportunity && response.data.account) {
-          // Import opportunityService at top first
-          const { opportunityService } = await import('../services/opportunityService');
-
-          await opportunityService.createOpportunity({
-            opportunityName: conversionData.opportunityName,
-            amount: parseFloat(conversionData.opportunityAmount),
-            closeDate: conversionData.closeDate,
-            account: response.data.account._id,
-            contact: response.data.contact?._id,
-            lead: selectedLead._id,
-            stage: 'Qualification',
-            probability: 50,
-            type: 'New Business',
-            leadSource: selectedLead.leadSource
-          });
-        }
-
-        setTimeout(() => setSuccess(''), 3000);
-      } else {
-        setError(response.message || 'Failed to convert lead');
-      }
-    } catch (err) {
-      console.error('Convert lead error:', err);
-      setError(err.response?.data?.message || 'Failed to convert lead');
-    }
   };
 
   const resetForm = () => {
@@ -278,20 +129,39 @@ const Leads = () => {
       lastName: '',
       email: '',
       phone: '',
+      mobilePhone: '',
+      fax: '',
       company: '',
       jobTitle: '',
-      leadSource: 'Other',
-      leadStatus: 'New',
-      rating: 'Warm',
-      industry: '',
       website: '',
+      leadSource: '',
+      leadStatus: '',
+      industry: '',
+      numberOfEmployees: '',
+      annualRevenue: '',
+      rating: '',
+      emailOptOut: false,
+      skypeId: '',
+      secondaryEmail: '',
+      twitter: '',
+      street: '',
+      city: '',
+      state: '',
+      country: '',
+      zipCode: '',
+      flatHouseNo: '',
+      latitude: '',
+      longitude: '',
       description: ''
     });
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : value 
+    }));
   };
 
   const handleFilterChange = (e) => {
@@ -300,10 +170,25 @@ const Leads = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
+  const handleLeadClick = (leadId) => {
+    navigate(`/leads/${leadId}`);
+  };
+
+  const handleClearAddress = () => {
+    setFormData(prev => ({
+      ...prev,
+      street: '',
+      city: '',
+      state: '',
+      country: '',
+      zipCode: '',
+      flatHouseNo: '',
+      latitude: '',
+      longitude: ''
+    }));
+  };
+
   const canCreateLead = hasPermission('lead_management', 'create');
-  const canUpdateLead = hasPermission('lead_management', 'update');
-  const canDeleteLead = hasPermission('lead_management', 'delete');
-  const canConvertLead = hasPermission('lead_management', 'convert');
   const canImportLeads = hasPermission('lead_management', 'import');
 
   const actionButton = (
@@ -319,9 +204,6 @@ const Leads = () => {
 
   return (
     <DashboardLayout title="Leads" actionButton={actionButton}>
-      {/* Debug info */}
-    
-
       {success && (
         <div style={{ padding: '16px', background: '#DCFCE7', color: '#166534', borderRadius: '8px', marginBottom: '20px' }}>
           {success}
@@ -426,7 +308,11 @@ const Leads = () => {
                 </thead>
                 <tbody>
                   {leads.map((lead) => (
-                    <tr key={lead._id}>
+                    <tr 
+                      key={lead._id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleLeadClick(lead._id)}
+                    >
                       <td>
                         <div style={{ fontWeight: '600' }}>
                           {lead.firstName} {lead.lastName}
@@ -454,34 +340,14 @@ const Leads = () => {
                       <td>
                         {lead.owner ? `${lead.owner.firstName || ''} ${lead.owner.lastName || ''}` : '-'}
                       </td>
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          {!lead.isConverted && (
-                            <TooltipButton
-                              className="crm-btn crm-btn-sm crm-btn-success"
-                              onClick={() => openConvertModal(lead)}
-                              disabled={!canConvertLead}
-                              tooltipText="You don't have permission to convert leads"
-                            >
-                              Convert
-                            </TooltipButton>
-                          )}
-                          <TooltipButton
-                            className="crm-btn crm-btn-sm crm-btn-secondary"
-                            onClick={() => openEditModal(lead)}
-                            disabled={!canUpdateLead}
-                            tooltipText="You don't have permission to edit leads"
+                          <button 
+                            className="crm-btn crm-btn-sm crm-btn-primary"
+                            onClick={() => handleLeadClick(lead._id)}
                           >
-                            Edit
-                          </TooltipButton>
-                          <TooltipButton
-                            className="crm-btn crm-btn-sm crm-btn-danger"
-                            onClick={() => openDeleteModal(lead)}
-                            disabled={!canDeleteLead}
-                            tooltipText="You don't have permission to delete leads"
-                          >
-                            Delete
-                          </TooltipButton>
+                            View
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -516,7 +382,7 @@ const Leads = () => {
         )}
       </div>
 
-      {/* Create Lead Modal */}
+      {/* Create Lead Modal - COMPLETE ZOHO STYLE */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => {
@@ -524,164 +390,537 @@ const Leads = () => {
           resetForm();
           setError('');
         }}
-        title="Create New Lead"
+        title="Create Lead"
         size="large"
       >
         <form onSubmit={handleCreateLead}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div className="crm-form-group">
-              <label className="crm-form-label">First Name *</label>
-              <input
-                type="text"
-                name="firstName"
-                className="crm-form-input"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Last Name *</label>
-              <input
-                type="text"
-                name="lastName"
-                className="crm-form-input"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Email *</label>
-              <input
-                type="email"
-                name="email"
-                className="crm-form-input"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Phone</label>
-              <input
-                type="tel"
-                name="phone"
-                className="crm-form-input"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Company</label>
-              <input
-                type="text"
-                name="company"
-                className="crm-form-input"
-                value={formData.company}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Job Title</label>
-              <input
-                type="text"
-                name="jobTitle"
-                className="crm-form-input"
-                value={formData.jobTitle}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Lead Source</label>
-              <select
-                name="leadSource"
-                className="crm-form-select"
-                value={formData.leadSource}
-                onChange={handleChange}
-              >
-                <option value="Website">Website</option>
-                <option value="Referral">Referral</option>
-                <option value="Campaign">Campaign</option>
-                <option value="Cold Call">Cold Call</option>
-                <option value="Trade Show">Trade Show</option>
-                <option value="Partner">Partner</option>
-                <option value="Social Media">Social Media</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Lead Status</label>
-              <select
-                name="leadStatus"
-                className="crm-form-select"
-                value={formData.leadStatus}
-                onChange={handleChange}
-              >
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Qualified">Qualified</option>
-                <option value="Unqualified">Unqualified</option>
-                <option value="Lost">Lost</option>
-              </select>
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Rating</label>
-              <select
-                name="rating"
-                className="crm-form-select"
-                value={formData.rating}
-                onChange={handleChange}
-              >
-                <option value="Hot">Hot</option>
-                <option value="Warm">Warm</option>
-                <option value="Cold">Cold</option>
-              </select>
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Industry</label>
-              <input
-                type="text"
-                name="industry"
-                className="crm-form-input"
-                value={formData.industry}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Website</label>
-              <input
-                type="url"
-                name="website"
-                className="crm-form-input"
-                value={formData.website}
-                onChange={handleChange}
-              />
+          {/* Lead Image Section */}
+          <div style={{ marginBottom: '24px', paddingBottom: '20px', borderBottom: '1px solid #E5E7EB' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#6B7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Lead Image
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{ 
+                width: '64px', 
+                height: '64px', 
+                borderRadius: '50%', 
+                background: '#F3F4F6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px dashed #D1D5DB',
+                overflow: 'hidden'
+              }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
             </div>
           </div>
 
-          <div className="crm-form-group">
-            <label className="crm-form-label">Description</label>
-            <textarea
-              name="description"
-              className="crm-form-textarea"
-              rows="3"
-              value={formData.description}
-              onChange={handleChange}
-            />
+          {/* Lead Information Section */}
+          <div style={{ marginBottom: '24px' }}>
+            <h4 style={{ 
+              fontSize: '12px', 
+              fontWeight: '700', 
+              color: '#111827', 
+              marginBottom: '16px', 
+              paddingBottom: '8px', 
+              borderBottom: '2px solid #E5E7EB',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Lead Information
+            </h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 140px 1fr', gap: '12px 16px', alignItems: 'center' }}>
+              {/* Lead Owner */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Lead Owner</label>
+              <div>
+                <select className="crm-form-input" disabled style={{ background: '#F9FAFB' }}>
+                  <option>{user?.firstName} {user?.lastName}</option>
+                </select>
+              </div>
+
+              {/* Company */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Company</label>
+              <div>
+                <input
+                  type="text"
+                  name="company"
+                  className="crm-form-input"
+                  value={formData.company}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* First Name */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>First Name</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select className="crm-form-select" style={{ width: '90px' }}>
+                  <option>-None-</option>
+                  <option>Mr.</option>
+                  <option>Mrs.</option>
+                  <option>Ms.</option>
+                  <option>Dr.</option>
+                </select>
+                <input
+                  type="text"
+                  name="firstName"
+                  className="crm-form-input"
+                  style={{ flex: 1 }}
+                  value={formData.firstName}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Last Name */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Last Name</label>
+              <div>
+                <input
+                  type="text"
+                  name="lastName"
+                  className="crm-form-input"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Title */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Title</label>
+              <div>
+                <input
+                  type="text"
+                  name="jobTitle"
+                  className="crm-form-input"
+                  value={formData.jobTitle}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Email */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Email</label>
+              <div>
+                <input
+                  type="email"
+                  name="email"
+                  className="crm-form-input"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Phone */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Phone</label>
+              <div>
+                <input
+                  type="tel"
+                  name="phone"
+                  className="crm-form-input"
+                  value={formData.phone}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Fax */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Fax</label>
+              <div>
+                <input
+                  type="text"
+                  name="fax"
+                  className="crm-form-input"
+                  value={formData.fax}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Mobile */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Mobile</label>
+              <div>
+                <input
+                  type="tel"
+                  name="mobilePhone"
+                  className="crm-form-input"
+                  value={formData.mobilePhone}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Website */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Website</label>
+              <div>
+                <input
+                  type="url"
+                  name="website"
+                  className="crm-form-input"
+                  value={formData.website}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Lead Source */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Lead Source</label>
+              <div>
+                <select
+                  name="leadSource"
+                  className="crm-form-select"
+                  value={formData.leadSource}
+                  onChange={handleChange}
+                >
+                  <option value="">-None-</option>
+                  <option value="Advertisement">Advertisement</option>
+                  <option value="Cold Call">Cold Call</option>
+                  <option value="Employee Referral">Employee Referral</option>
+                  <option value="External Referral">External Referral</option>
+                  <option value="Partner">Partner</option>
+                  <option value="Public Relations">Public Relations</option>
+                  <option value="Trade Show">Trade Show</option>
+                  <option value="Web Research">Web Research</option>
+                  <option value="Website">Website</option>
+                </select>
+              </div>
+
+              {/* Lead Status */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Lead Status</label>
+              <div>
+                <select
+                  name="leadStatus"
+                  className="crm-form-select"
+                  value={formData.leadStatus}
+                  onChange={handleChange}
+                >
+                  <option value="">-None-</option>
+                  <option value="New">New</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="Qualified">Qualified</option>
+                  <option value="Unqualified">Unqualified</option>
+                  <option value="Lost">Lost</option>
+                </select>
+              </div>
+
+              {/* Industry */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Industry</label>
+              <div>
+                <select
+                  name="industry"
+                  className="crm-form-select"
+                  value={formData.industry}
+                  onChange={handleChange}
+                >
+                  <option value="">-None-</option>
+                  <option value="Agriculture">Agriculture</option>
+                  <option value="Banking">Banking</option>
+                  <option value="Biotechnology">Biotechnology</option>
+                  <option value="Construction">Construction</option>
+                  <option value="Consulting">Consulting</option>
+                  <option value="Education">Education</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Energy">Energy</option>
+                  <option value="Engineering">Engineering</option>
+                  <option value="Entertainment">Entertainment</option>
+                  <option value="Finance">Finance</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Hospitality">Hospitality</option>
+                  <option value="Insurance">Insurance</option>
+                  <option value="IT">IT</option>
+                  <option value="Manufacturing">Manufacturing</option>
+                  <option value="Real Estate">Real Estate</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Technology">Technology</option>
+                  <option value="Telecommunications">Telecommunications</option>
+                </select>
+              </div>
+
+              {/* No. of Employees */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>No. of Employees</label>
+              <div>
+                <input
+                  type="number"
+                  name="numberOfEmployees"
+                  className="crm-form-input"
+                  value={formData.numberOfEmployees}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Annual Revenue */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Annual Revenue</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6B7280', fontSize: '13px' }}>₹</span>
+                <input
+                  type="number"
+                  name="annualRevenue"
+                  className="crm-form-input"
+                  style={{ paddingLeft: '28px' }}
+                  value={formData.annualRevenue}
+                  onChange={handleChange}
+                />
+                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', fontSize: '18px', cursor: 'help' }}>ⓘ</span>
+              </div>
+
+              {/* Rating */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Rating</label>
+              <div>
+                <select
+                  name="rating"
+                  className="crm-form-select"
+                  value={formData.rating}
+                  onChange={handleChange}
+                >
+                  <option value="">-None-</option>
+                  <option value="Hot">Hot</option>
+                  <option value="Warm">Warm</option>
+                  <option value="Cold">Cold</option>
+                </select>
+              </div>
+
+              {/* Email Opt Out */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Email Opt Out</label>
+              <div>
+                <input
+                  type="checkbox"
+                  name="emailOptOut"
+                  checked={formData.emailOptOut}
+                  onChange={handleChange}
+                  style={{ width: '18px', height: '18px' }}
+                />
+              </div>
+
+              {/* Skype ID */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Skype ID</label>
+              <div>
+                <input
+                  type="text"
+                  name="skypeId"
+                  className="crm-form-input"
+                  value={formData.skypeId}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Secondary Email */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Secondary Email</label>
+              <div>
+                <input
+                  type="email"
+                  name="secondaryEmail"
+                  className="crm-form-input"
+                  value={formData.secondaryEmail}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Twitter */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Twitter</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6B7280', fontSize: '13px' }}>@</span>
+                <input
+                  type="text"
+                  name="twitter"
+                  className="crm-form-input"
+                  style={{ paddingLeft: '28px' }}
+                  value={formData.twitter}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="modal-footer">
+          {/* Address Information Section */}
+          <div style={{ marginBottom: '24px' }}>
+            <h4 style={{ 
+              fontSize: '12px', 
+              fontWeight: '700', 
+              color: '#111827', 
+              marginBottom: '16px', 
+              paddingBottom: '8px', 
+              borderBottom: '2px solid #E5E7EB',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Address Information
+            </h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 140px 1fr', gap: '12px 16px', alignItems: 'start' }}>
+              {/* Address */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right', paddingTop: '8px' }}>Address</label>
+              <div style={{ gridColumn: 'span 3' }}>
+                <textarea
+                  name="street"
+                  className="crm-form-textarea"
+                  rows="2"
+                  value={formData.street}
+                  onChange={handleChange}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+
+              {/* Country/Region */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Country/Region</label>
+              <div>
+                <select
+                  name="country"
+                  className="crm-form-select"
+                  value={formData.country}
+                  onChange={handleChange}
+                >
+                  <option value="">-None-</option>
+                  <option value="India">India</option>
+                  <option value="United States">United States</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Australia">Australia</option>
+                  <option value="Germany">Germany</option>
+                  <option value="France">France</option>
+                </select>
+              </div>
+
+              {/* Flat/House No */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Flat/House No/<br/>Building/Apartment<br/>Name</label>
+              <div>
+                <input
+                  type="text"
+                  name="flatHouseNo"
+                  className="crm-form-input"
+                  value={formData.flatHouseNo}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Street Address */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Street Address</label>
+              <div>
+                <input
+                  type="text"
+                  name="street"
+                  className="crm-form-input"
+                  value={formData.street}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* City */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>City</label>
+              <div>
+                <input
+                  type="text"
+                  name="city"
+                  className="crm-form-input"
+                  value={formData.city}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* State/Province */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>State/Province</label>
+              <div>
+                <select
+                  name="state"
+                  className="crm-form-select"
+                  value={formData.state}
+                  onChange={handleChange}
+                >
+                  <option value="">-None-</option>
+                  <option value="Delhi">Delhi</option>
+                  <option value="Maharashtra">Maharashtra</option>
+                  <option value="Karnataka">Karnataka</option>
+                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  <option value="Gujarat">Gujarat</option>
+                </select>
+              </div>
+
+              {/* Zip/Postal Code */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Zip/Postal Code</label>
+              <div>
+                <input
+                  type="text"
+                  name="zipCode"
+                  className="crm-form-input"
+                  value={formData.zipCode}
+                  onChange={handleChange}
+                />
+              </div>
+
+              {/* Coordinates */}
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right' }}>Coordinates</label>
+              <div style={{ display: 'flex', gap: '8px', gridColumn: 'span 3' }}>
+                <input
+                  type="text"
+                  name="latitude"
+                  className="crm-form-input"
+                  placeholder="Latitude"
+                  value={formData.latitude}
+                  onChange={handleChange}
+                  style={{ flex: 1 }}
+                />
+                <input
+                  type="text"
+                  name="longitude"
+                  className="crm-form-input"
+                  placeholder="Longitude"
+                  value={formData.longitude}
+                  onChange={handleChange}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={handleClearAddress}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'white',
+                    border: '1px solid #D1D5DB',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    color: '#6B7280',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Description Information Section */}
+          <div style={{ marginBottom: '24px' }}>
+            <h4 style={{ 
+              fontSize: '12px', 
+              fontWeight: '700', 
+              color: '#111827', 
+              marginBottom: '16px', 
+              paddingBottom: '8px', 
+              borderBottom: '2px solid #E5E7EB',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Description Information
+            </h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '12px 16px', alignItems: 'start' }}>
+              <label style={{ fontSize: '13px', color: '#374151', textAlign: 'right', paddingTop: '8px' }}>Description</label>
+              <div>
+                <textarea
+                  name="description"
+                  className="crm-form-textarea"
+                  rows="4"
+                  value={formData.description}
+                  onChange={handleChange}
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Buttons */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            gap: '12px', 
+            paddingTop: '20px', 
+            borderTop: '1px solid #E5E7EB',
+            marginTop: '20px'
+          }}>
             <button
               type="button"
               className="crm-btn crm-btn-secondary"
@@ -693,357 +932,23 @@ const Leads = () => {
             >
               Cancel
             </button>
-            <button type="submit" className="crm-btn crm-btn-primary">
-              Create Lead
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit Lead Modal - Same as Create but with Update */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedLead(null);
-          resetForm();
-          setError('');
-        }}
-        title="Edit Lead"
-        size="large"
-      >
-        <form onSubmit={handleUpdateLead}>
-          {/* Same form fields as create */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            <div className="crm-form-group">
-              <label className="crm-form-label">First Name *</label>
-              <input
-                type="text"
-                name="firstName"
-                className="crm-form-input"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Last Name *</label>
-              <input
-                type="text"
-                name="lastName"
-                className="crm-form-input"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Email *</label>
-              <input
-                type="email"
-                name="email"
-                className="crm-form-input"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Phone</label>
-              <input
-                type="tel"
-                name="phone"
-                className="crm-form-input"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Company</label>
-              <input
-                type="text"
-                name="company"
-                className="crm-form-input"
-                value={formData.company}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Job Title</label>
-              <input
-                type="text"
-                name="jobTitle"
-                className="crm-form-input"
-                value={formData.jobTitle}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Lead Status</label>
-              <select
-                name="leadStatus"
-                className="crm-form-select"
-                value={formData.leadStatus}
-                onChange={handleChange}
-              >
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Qualified">Qualified</option>
-                <option value="Unqualified">Unqualified</option>
-                <option value="Lost">Lost</option>
-              </select>
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Rating</label>
-              <select
-                name="rating"
-                className="crm-form-select"
-                value={formData.rating}
-                onChange={handleChange}
-              >
-                <option value="Hot">Hot</option>
-                <option value="Warm">Warm</option>
-                <option value="Cold">Cold</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="modal-footer">
-            <button
-              type="button"
+            <button 
+              type="button" 
               className="crm-btn crm-btn-secondary"
               onClick={() => {
-                setShowEditModal(false);
-                setSelectedLead(null);
+                handleCreateLead(new Event('submit'));
                 resetForm();
-                setError('');
               }}
             >
-              Cancel
+              Save and New
             </button>
             <button type="submit" className="crm-btn crm-btn-primary">
-              Update Lead
+              Save
             </button>
           </div>
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedLead(null);
-        }}
-        title="Delete Lead"
-        size="small"
-      >
-        <div>
-          <p>Are you sure you want to delete this lead?</p>
-          <p style={{ marginTop: '10px', fontWeight: '600' }}>
-            {selectedLead?.firstName} {selectedLead?.lastName}
-          </p>
-          <p style={{ fontSize: '14px', color: '#666' }}>
-            {selectedLead?.company} • {selectedLead?.email}
-          </p>
-          <p style={{ marginTop: '15px', color: '#E74C3C', fontSize: '14px' }}>
-            This action cannot be undone.
-          </p>
-
-          <div className="modal-footer">
-            <button
-              className="crm-btn crm-btn-secondary"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedLead(null);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              className="crm-btn crm-btn-danger"
-              onClick={handleDeleteLead}
-            >
-              Delete Lead
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Convert Modal */}
-      {showConvertModal && selectedLead && (
-        <div className="crm-modal-overlay" onClick={() => setShowConvertModal(false)}>
-          <div className="crm-modal crm-modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="crm-modal-header">
-              <h3>Convert Lead</h3>
-              <button
-                className="crm-modal-close"
-                onClick={() => setShowConvertModal(false)}
-              >
-                &times;
-              </button>
-            </div>
-            <form onSubmit={handleConvertLead}>
-              <div className="crm-modal-body">
-                {/* Lead Info */}
-                <div className="crm-card" style={{ marginBottom: '20px', background: '#f8f9fa' }}>
-                  <div className="crm-card-body">
-                    <h4 style={{ marginBottom: '10px' }}>Lead Information</h4>
-                    <p><strong>Name:</strong> {selectedLead.firstName} {selectedLead.lastName}</p>
-                    <p><strong>Email:</strong> {selectedLead.email}</p>
-                    <p><strong>Company:</strong> {selectedLead.company || 'N/A'}</p>
-                    <p><strong>Phone:</strong> {selectedLead.phone || 'N/A'}</p>
-                  </div>
-                </div>
-
-                {/* Account Creation */}
-                <div className="crm-form-row">
-                  <div className="crm-form-group">
-                    <label className="crm-checkbox-label">
-                      <input
-                        type="checkbox"
-                        name="createAccount"
-                        checked={conversionData.createAccount}
-                        onChange={handleConversionChange}
-                      />
-                      <span>Create Account</span>
-                    </label>
-                  </div>
-                </div>
-
-                {conversionData.createAccount && (
-                  <div className="crm-form-row">
-                    <div className="crm-form-group">
-                      <label className="crm-label">Account Name *</label>
-                      <input
-                        type="text"
-                        name="accountName"
-                        value={conversionData.accountName}
-                        onChange={handleConversionChange}
-                        className="crm-input"
-                        required={conversionData.createAccount}
-                      />
-                      <small className="crm-help-text">
-                        Will use lead's company name or full name as account name
-                      </small>
-                    </div>
-                  </div>
-                )}
-
-                {/* Contact Creation */}
-                <div className="crm-form-row">
-                  <div className="crm-form-group">
-                    <label className="crm-checkbox-label">
-                      <input
-                        type="checkbox"
-                        name="createContact"
-                        checked={conversionData.createContact}
-                        onChange={handleConversionChange}
-                      />
-                      <span>Create Contact</span>
-                    </label>
-                    <small className="crm-help-text">
-                      Will use lead's personal information to create contact
-                    </small>
-                  </div>
-                </div>
-
-                {/* Opportunity Creation */}
-                <div className="crm-form-row">
-                  <div className="crm-form-group">
-                    <label className="crm-checkbox-label">
-                      <input
-                        type="checkbox"
-                        name="createOpportunity"
-                        checked={conversionData.createOpportunity}
-                        onChange={handleConversionChange}
-                        disabled={!conversionData.createAccount}
-                      />
-                      <span>Create Opportunity</span>
-                    </label>
-                    {!conversionData.createAccount && (
-                      <small className="crm-help-text crm-text-muted">
-                        (Requires account creation)
-                      </small>
-                    )}
-                  </div>
-                </div>
-
-                {conversionData.createOpportunity && conversionData.createAccount && (
-                  <>
-                    <div className="crm-form-row">
-                      <div className="crm-form-group">
-                        <label className="crm-label">Opportunity Name *</label>
-                        <input
-                          type="text"
-                          name="opportunityName"
-                          value={conversionData.opportunityName}
-                          onChange={handleConversionChange}
-                          className="crm-input"
-                          required={conversionData.createOpportunity}
-                        />
-                      </div>
-                    </div>
-                    <div className="crm-form-row">
-                      <div className="crm-form-group">
-                        <label className="crm-label">Amount *</label>
-                        <input
-                          type="number"
-                          name="opportunityAmount"
-                          value={conversionData.opportunityAmount}
-                          onChange={handleConversionChange}
-                          className="crm-input"
-                          min="0"
-                          step="0.01"
-                          required={conversionData.createOpportunity}
-                        />
-                      </div>
-                      <div className="crm-form-group">
-                        <label className="crm-label">Expected Close Date *</label>
-                        <input
-                          type="date"
-                          name="closeDate"
-                          value={conversionData.closeDate}
-                          onChange={handleConversionChange}
-                          className="crm-input"
-                          required={conversionData.createOpportunity}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div className="crm-alert crm-alert-info" style={{ marginTop: '20px' }}>
-                  <strong>Note:</strong> The lead will be marked as "Converted" and will no longer appear in the active leads list.
-                </div>
-              </div>
-              <div className="crm-modal-footer">
-                <button
-                  type="button"
-                  className="crm-btn crm-btn-secondary"
-                  onClick={() => setShowConvertModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="crm-btn crm-btn-primary"
-                  disabled={!conversionData.createAccount && !conversionData.createContact}
-                >
-                  Convert Lead
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {showBulkUploadModal && (
         <div>Bulk upload modal - To be implemented</div>
       )}

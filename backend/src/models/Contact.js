@@ -1,136 +1,226 @@
 const mongoose = require('mongoose');
 
-const addressSchema = new mongoose.Schema({
-  street: String,
-  city: String,
-  state: String,
-  country: String,
-  zipCode: String
-}, { _id: false });
-
 const contactSchema = new mongoose.Schema({
   // Basic Information
   firstName: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
+  
   lastName: {
     type: String,
-    required: true,
+    required: false,
     trim: true
   },
+  
+  salutation: {
+    type: String,
+    enum: ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', '']
+  },
+  
   email: {
     type: String,
+    required: false,
     trim: true,
     lowercase: true
   },
+  
   phone: {
     type: String,
     trim: true
   },
+  
   mobilePhone: {
     type: String,
     trim: true
   },
+  
+  homePhone: {
+    type: String,
+    trim: true
+  },
+  
+  otherPhone: {
+    type: String,
+    trim: true
+  },
+  
+  fax: {
+    type: String,
+    trim: true
+  },
+  
+  // Professional Information
   jobTitle: {
     type: String,
     trim: true
   },
+  
   department: {
     type: String,
-    trim: true
+    enum: [
+      'Executive Management',
+      'Sales',
+      'Marketing',
+      'Finance',
+      'Operations',
+      'Human Resources',
+      'IT',
+      'Customer Service',
+      'Legal',
+      'Research & Development',
+      'Other'
+    ]
   },
-
-  // Related Account
+  
   account: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Account'
   },
-
-  // Address
-  mailingAddress: addressSchema,
-
-  // Contact Hierarchy
-  reportingTo: {
+  
+  reportsTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Contact'
   },
+  
+  // Address Information
+  mailingAddress: {
+    street: String,
+    city: String,
+    state: String,
+    country: String,
+    zipCode: String
+  },
+  
+  otherAddress: {
+    street: String,
+    city: String,
+    state: String,
+    country: String,
+    zipCode: String
+  },
+  
+  // Additional Information
+  leadSource: {
+    type: String,
+    enum: [
+      'Advertisement',
+      'Cold Call',
+      'Employee Referral',
+      'External Referral',
+      'Partner',
+      'Public Relations',
+      'Trade Show',
+      'Web Research',
+      'Website',
+      'Other'
+    ]
+  },
+  
+  birthdate: {
+    type: Date
+  },
+  
   assistant: {
     type: String,
     trim: true
   },
+  
   assistantPhone: {
     type: String,
     trim: true
   },
-  dateOfBirth: Date,
-
-  // Assignment
+  
+  // Social Media
+  skypeId: {
+    type: String,
+    trim: true
+  },
+  
+  twitter: {
+    type: String,
+    trim: true
+  },
+  
+  linkedIn: {
+    type: String,
+    trim: true
+  },
+  
+  secondaryEmail: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  
+  // Description
+  description: {
+    type: String,
+    trim: true
+  },
+  
+  // Email Preferences
+  emailOptOut: {
+    type: Boolean,
+    default: false
+  },
+  
+  doNotCall: {
+    type: Boolean,
+    default: false
+  },
+  
+  // Owner and Tenant
   owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
+  
   tenant: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tenant',
     required: true
   },
-
-  // Communication Preferences
-  emailOptOut: {
-    type: Boolean,
-    default: false
-  },
-  doNotCall: {
-    type: Boolean,
-    default: false
-  },
-
-  // Additional Information
-  description: String,
-  leadSource: {
-    type: String,
-    enum: ['Website', 'Referral', 'Campaign', 'Cold Call', 'Trade Show', 'Partner', 'Social Media', 'Other']
-  },
-
-  // System Fields
+  
+  // Tracking
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  
   lastModifiedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  
   isActive: {
     type: Boolean,
     default: true
   },
-  tags: [String],
-  customFields: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed
-  }
+  
+  // Tags
+  tags: [{
+    type: String,
+    trim: true
+  }]
 }, {
   timestamps: true
 });
 
 // Indexes
-contactSchema.index({ email: 1, tenant: 1 });
+contactSchema.index({ tenant: 1, isActive: 1 });
 contactSchema.index({ account: 1 });
 contactSchema.index({ owner: 1 });
-contactSchema.index({ tenant: 1 });
-contactSchema.index({ createdAt: -1 });
+contactSchema.index({ email: 1 });
+contactSchema.index({ firstName: 'text', lastName: 'text', email: 'text' });
 
 // Virtual for full name
 contactSchema.virtual('fullName').get(function() {
   return `${this.firstName} ${this.lastName}`;
 });
 
-// Ensure virtuals are included in JSON
-contactSchema.set('toJSON', { virtuals: true });
-contactSchema.set('toObject', { virtuals: true });
+const Contact = mongoose.model('Contact', contactSchema);
 
-module.exports = mongoose.model('Contact', contactSchema);
+module.exports = Contact;

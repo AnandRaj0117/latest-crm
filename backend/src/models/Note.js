@@ -1,56 +1,70 @@
 const mongoose = require('mongoose');
 
 const noteSchema = new mongoose.Schema({
-  // Note Content
+  // Basic Information
   title: {
     type: String,
+    required: [true, 'Title is required'],
     trim: true
   },
+  
   content: {
     type: String,
-    required: true,
+    required: [true, 'Content is required'],
     trim: true
   },
-
-  // Related To (polymorphic - can be attached to any entity)
+  
+  // Related To
   relatedTo: {
-    type: {
-      type: String,
-      enum: ['Lead', 'Account', 'Contact', 'Opportunity', 'Activity'],
-      required: true
-    },
-    id: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      refPath: 'relatedTo.type'
-    }
+    type: String,
+    enum: ['Lead', 'Account', 'Contact', 'Opportunity', 'Deal', 'Task'],
+    required: true
   },
-
-  // Visibility
-  isPrivate: {
-    type: Boolean,
-    default: false
+  
+  relatedToId: {
+    type: mongoose.Schema.Types.ObjectId,
+    refPath: 'relatedTo',
+    required: true
   },
-
-  // Assignment
-  createdBy: {
+  
+  // Owner and Tenant
+  owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
+  
   tenant: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tenant',
     required: true
+  },
+  
+  // Tracking
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
+  lastModifiedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
+  isActive: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true
 });
 
 // Indexes
-noteSchema.index({ 'relatedTo.type': 1, 'relatedTo.id': 1 });
-noteSchema.index({ createdBy: 1 });
-noteSchema.index({ tenant: 1 });
+noteSchema.index({ tenant: 1, isActive: 1 });
+noteSchema.index({ relatedToId: 1 });
+noteSchema.index({ owner: 1 });
 noteSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model('Note', noteSchema);
+const Note = mongoose.model('Note', noteSchema);
+
+module.exports = Note;

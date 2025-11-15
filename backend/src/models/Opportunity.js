@@ -1,143 +1,178 @@
 const mongoose = require('mongoose');
 
 const opportunitySchema = new mongoose.Schema({
+  // Basic Information
   opportunityName: {
     type: String,
     required: [true, 'Opportunity name is required'],
     trim: true
   },
-
-  // Basic Information
+  
   amount: {
     type: Number,
-    required: [true, 'Amount is required'],
+    default: 0,
     min: 0
   },
-
+  
+  closeDate: {
+    type: Date,
+    required: [true, 'Close date is required']
+  },
+  
   stage: {
     type: String,
     enum: [
-      'Prospecting',
       'Qualification',
-      'Needs Analysis',
+      'Needs Analysis', 
       'Value Proposition',
+      'Id. Decision Makers',
+      'Perception Analysis',
       'Proposal/Price Quote',
       'Negotiation/Review',
       'Closed Won',
       'Closed Lost'
     ],
-    default: 'Prospecting',
-    required: true
+    default: 'Qualification'
   },
-
+  
   probability: {
     type: Number,
     min: 0,
     max: 100,
-    default: 10
+    default: 50
   },
-
-  closeDate: {
-    type: Date,
-    required: [true, 'Expected close date is required']
+  
+  type: {
+    type: String,
+    enum: ['New Business', 'Existing Business', 'New Customer', 'Existing Customer'],
+    default: 'New Business'
   },
-
+  
+  leadSource: {
+    type: String,
+    enum: [
+      '',
+      'Advertisement',
+      'Cold Call',
+      'Employee Referral',
+      'External Referral',
+      'Partner',
+      'Public Relations',
+      'Sales Mail Alias',
+      'Seminar Partner',
+      'Trade Show',
+      'Web Research',
+      'Website',
+      'Chat',
+      'Other'
+    ]
+  },
+  
+  nextStep: {
+    type: String,
+    trim: true
+  },
+  
+  description: {
+    type: String,
+    trim: true
+  },
+  
   // Relationships
   account: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Account',
     required: [true, 'Account is required']
   },
-
+  
   contact: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Contact'
   },
-
+  
   lead: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lead'
   },
-
+  
+  // Additional Fields
+  expectedRevenue: {
+    type: Number,
+    default: 0
+  },
+  
+  campaignSource: {
+    type: String,
+    trim: true
+  },
+  
+  contactRole: {
+    type: String,
+    trim: true
+  },
+  
+  // Owner and Tenant
   owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-
-  // Additional Information
-  type: {
-    type: String,
-    enum: ['New Business', 'Existing Business', 'Renewal'],
-    default: 'New Business'
-  },
-
-  leadSource: {
-    type: String,
-    enum: ['Web', 'Phone Inquiry', 'Partner Referral', 'Purchased List', 'Other'],
-    default: 'Other'
-  },
-
-  nextStep: {
-    type: String,
-    trim: true
-  },
-
-  description: {
-    type: String,
-    trim: true
-  },
-
-  // Tenant (for multi-tenancy)
+  
   tenant: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tenant',
     required: true
   },
-
+  
   // Tracking
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
-
+  
   lastModifiedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  
+  // Tags
+  tags: [{
+    type: String,
+    trim: true
+  }]
 }, {
   timestamps: true
 });
 
-// Indexes for better query performance
+// Indexes
 opportunitySchema.index({ tenant: 1, isActive: 1 });
 opportunitySchema.index({ account: 1 });
+opportunitySchema.index({ owner: 1 });
 opportunitySchema.index({ stage: 1 });
 opportunitySchema.index({ closeDate: 1 });
-opportunitySchema.index({ owner: 1 });
+opportunitySchema.index({ opportunityName: 'text' });
 
 // Virtual for days until close
 opportunitySchema.virtual('daysUntilClose').get(function() {
   if (!this.closeDate) return null;
-  const today = new Date();
-  const close = new Date(this.closeDate);
-  const diffTime = close - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
+  const now = new Date();
+  const diff = this.closeDate - now;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
 });
 
-// Virtual for weighted amount (amount * probability)
-opportunitySchema.virtual('weightedAmount').get(function() {
-  return (this.amount * this.probability) / 100;
+// Calculate expected revenue based on amount and probability
+opportunitySchema.pre('save', function(next) {
+  if (this.amount && this.probability) {
+    this.expectedRevenue = (this.amount * this.probability) / 100;
+  }
+  next();
 });
 
-// Ensure virtuals are included in JSON
-opportunitySchema.set('toJSON', { virtuals: true });
-opportunitySchema.set('toObject', { virtuals: true });
+const Opportunity = mongoose.model('Opportunity', opportunitySchema);
 
-module.exports = mongoose.model('Opportunity', opportunitySchema);
+module.exports = Opportunity;

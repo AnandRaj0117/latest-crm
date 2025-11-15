@@ -7,29 +7,28 @@ const {
   updateLead,
   deleteLead,
   convertLead,
-  bulkUploadLeads,
-  getLeadStats
+  bulkImportLeads
 } = require('../controllers/leadController');
 const { protect } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
 
-// All routes are protected
+// All routes require authentication
 router.use(protect);
 
-// Lead statistics
-router.get('/stats', requirePermission('lead_management', 'read'), getLeadStats);
+// Bulk import route (must be before /:id route)
+router.post('/bulk-import', requirePermission('lead_management', 'import'), bulkImportLeads);
 
-// Bulk upload
-router.post('/bulk-upload', requirePermission('lead_management', 'import'), bulkUploadLeads);
-
-// Lead conversion
+// Convert lead route (must be before /:id route)
 router.post('/:id/convert', requirePermission('lead_management', 'convert'), convertLead);
 
 // CRUD routes
-router.get('/', requirePermission('lead_management', 'read'), getLeads);
-router.get('/:id', requirePermission('lead_management', 'read'), getLead);
-router.post('/', requirePermission('lead_management', 'create'), createLead);
-router.put('/:id', requirePermission('lead_management', 'update'), updateLead);
-router.delete('/:id', requirePermission('lead_management', 'delete'), deleteLead);
+router.route('/')
+  .get(requirePermission('lead_management', 'read'), getLeads)
+  .post(requirePermission('lead_management', 'create'), createLead);
+
+router.route('/:id')
+  .get(requirePermission('lead_management', 'read'), getLead)
+  .put(requirePermission('lead_management', 'update'), updateLead)
+  .delete(requirePermission('lead_management', 'delete'), deleteLead);
 
 module.exports = router;

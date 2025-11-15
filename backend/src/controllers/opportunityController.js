@@ -17,12 +17,11 @@ const getOpportunities = async (req, res) => {
       limit = 10,
       search,
       stage,
-      account,
-      minAmount,
-      maxAmount
+      type,
+      owner,
+      account
     } = req.query;
 
-    // Build query
     let query = { isActive: true };
 
     // Tenant filtering
@@ -32,42 +31,27 @@ const getOpportunities = async (req, res) => {
 
     // Filters
     if (search) {
-      query.opportunityName = { $regex: search, $options: 'i' };
+      query.$or = [
+        { opportunityName: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
     }
 
     if (stage) query.stage = stage;
+    if (type) query.type = type;
+    if (owner) query.owner = owner;
     if (account) query.account = account;
 
-    if (minAmount || maxAmount) {
-      query.amount = {};
-      if (minAmount) query.amount.$gte = parseFloat(minAmount);
-      if (maxAmount) query.amount.$lte = parseFloat(maxAmount);
-    }
-
-    // Get total count
     const total = await Opportunity.countDocuments(query);
 
-    // Get opportunities with pagination
     const opportunities = await Opportunity.find(query)
-      .populate({
-        path: 'account',
-        select: 'accountName accountNumber'
-      })
-      .populate({
-        path: 'contact',
-        select: 'firstName lastName email'
-      })
-      .populate({
-        path: 'owner',
-        select: 'firstName lastName email'
-      })
-      .populate({
-        path: 'tenant',
-        select: 'organizationName'
-      })
+      .populate('owner', 'firstName lastName email')
+      .populate('account', 'accountName accountType')
+      .populate('contact', 'firstName lastName email')
+      .populate('tenant', 'organizationName')
       .limit(limit * 1)
       .skip((page - 1) * limit)
-      .sort({ closeDate: 1 })
+      .sort({ createdAt: -1 })
       .lean();
 
     successResponse(res, 200, 'Opportunities retrieved successfully', {
@@ -81,7 +65,7 @@ const getOpportunities = async (req, res) => {
     });
   } catch (error) {
     console.error('Get opportunities error:', error);
-    errorResponse(res, 500, `Server error: ${error.message}`);
+    errorResponse(res, 500, 'Server error');
   }
 };
 
@@ -93,11 +77,11 @@ const getOpportunities = async (req, res) => {
 const getOpportunity = async (req, res) => {
   try {
     const opportunity = await Opportunity.findById(req.params.id)
-      .populate('account', 'accountName accountNumber phone website')
-      .populate('contact', 'firstName lastName email phone')
       .populate('owner', 'firstName lastName email')
-      .populate('tenant', 'organizationName')
-      .populate('lead', 'firstName lastName email company');
+      .populate('account', 'accountName accountType industry website phone')
+      .populate('contact', 'firstName lastName email phone jobTitle')
+      .populate('lead', 'firstName lastName email')
+      .populate('tenant', 'organizationName');
 
     if (!opportunity) {
       return errorResponse(res, 404, 'Opportunity not found');
@@ -127,44 +111,28 @@ const createOpportunity = async (req, res) => {
     const {
       opportunityName,
       amount,
+      closeDate,
       stage,
       probability,
-      closeDate,
-      account,
-      contact,
-      lead,
       type,
       leadSource,
+      account,
+      contact,
       nextStep,
-      description
+      description,
+      campaignSource,
+      contactRole
     } = req.body;
 
     // Validation
-    if (!opportunityName || !amount || !closeDate) {
-      return errorResponse(res, 400, 'Please provide opportunityName, amount, and closeDate');
-    }
-
-    if (!account) {
-      return errorResponse(res, 400, 'Account is required for opportunity');
+    if (!opportunityName || !closeDate || !account) {
+      return errorResponse(res, 400, 'Please provide opportunityName, closeDate, and account');
     }
 
     // Verify account exists
     const accountExists = await Account.findById(account);
     if (!accountExists) {
       return errorResponse(res, 404, 'Account not found');
-    }
-
-    // Verify contact exists if provided
-    if (contact) {
-      const contactExists = await Contact.findById(contact);
-      if (!contactExists) {
-        return errorResponse(res, 404, 'Contact not found');
-      }
-
-      // Verify contact belongs to the account
-      if (contactExists.account.toString() !== account) {
-        return errorResponse(res, 400, 'Contact does not belong to the specified account');
-      }
     }
 
     // Determine tenant
@@ -181,28 +149,27 @@ const createOpportunity = async (req, res) => {
     // Create opportunity
     const opportunity = await Opportunity.create({
       opportunityName,
-      amount,
-      stage: stage || 'Prospecting',
-      probability: probability || 10,
+      amount: amount || 0,
       closeDate,
-      account,
-      contact: contact || null,
-      lead: lead || null,
+      stage: stage || 'Qualification',
+      probability: probability || 50,
       type: type || 'New Business',
       leadSource,
+      account,
+      contact,
       nextStep,
       description,
+      campaignSource,
+      contactRole,
       owner: req.body.owner || req.user._id,
       tenant,
       createdBy: req.user._id,
       lastModifiedBy: req.user._id
     });
 
-    await opportunity.populate('account', 'accountName accountNumber');
-    await opportunity.populate('contact', 'firstName lastName email');
     await opportunity.populate('owner', 'firstName lastName email');
+    await opportunity.populate('account', 'accountName');
 
-    // Log activity
     await logActivity(req, 'opportunity.created', 'Opportunity', opportunity._id, {
       opportunityName: opportunity.opportunityName,
       amount: opportunity.amount,
@@ -236,43 +203,26 @@ const updateOpportunity = async (req, res) => {
       }
     }
 
-    const {
-      opportunityName,
-      amount,
-      stage,
-      probability,
-      closeDate,
-      contact,
-      type,
-      leadSource,
-      nextStep,
-      description
-    } = req.body;
-
     // Update fields
-    if (opportunityName) opportunity.opportunityName = opportunityName;
-    if (amount !== undefined) opportunity.amount = amount;
-    if (stage) opportunity.stage = stage;
-    if (probability !== undefined) opportunity.probability = probability;
-    if (closeDate) opportunity.closeDate = closeDate;
-    if (contact !== undefined) opportunity.contact = contact;
-    if (type) opportunity.type = type;
-    if (leadSource) opportunity.leadSource = leadSource;
-    if (nextStep !== undefined) opportunity.nextStep = nextStep;
-    if (description !== undefined) opportunity.description = description;
+    const allowedFields = [
+      'opportunityName', 'amount', 'closeDate', 'stage', 'probability',
+      'type', 'leadSource', 'account', 'contact', 'nextStep',
+      'description', 'campaignSource', 'contactRole', 'owner', 'tags'
+    ];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        opportunity[field] = req.body[field];
+      }
+    });
 
     opportunity.lastModifiedBy = req.user._id;
     await opportunity.save();
 
-    await opportunity.populate('account', 'accountName accountNumber');
-    await opportunity.populate('contact', 'firstName lastName email');
     await opportunity.populate('owner', 'firstName lastName email');
+    await opportunity.populate('account', 'accountName');
 
-    // Log activity
-    await logActivity(req, 'opportunity.updated', 'Opportunity', opportunity._id, {
-      opportunityName: opportunity.opportunityName,
-      stage: opportunity.stage
-    });
+    await logActivity(req, 'opportunity.updated', 'Opportunity', opportunity._id);
 
     successResponse(res, 200, 'Opportunity updated successfully', opportunity);
   } catch (error) {
@@ -306,7 +256,6 @@ const deleteOpportunity = async (req, res) => {
     opportunity.lastModifiedBy = req.user._id;
     await opportunity.save();
 
-    // Log activity
     await logActivity(req, 'opportunity.deleted', 'Opportunity', opportunity._id, {
       opportunityName: opportunity.opportunityName
     });
@@ -325,77 +274,46 @@ const deleteOpportunity = async (req, res) => {
  */
 const getOpportunityStats = async (req, res) => {
   try {
-    let query = { isActive: true };
+    const query = { isActive: true };
 
     // Tenant filtering
     if (req.user.userType !== 'SAAS_OWNER' && req.user.userType !== 'SAAS_ADMIN') {
       query.tenant = req.user.tenant;
     }
 
-    // Total opportunities
-    const total = await Opportunity.countDocuments(query);
-
-    // Total value
-    const pipeline = [
-      { $match: query },
-      {
-        $group: {
-          _id: null,
-          totalValue: { $sum: '$amount' },
-          weightedValue: { $sum: { $multiply: ['$amount', { $divide: ['$probability', 100] }] } }
-        }
-      }
-    ];
-
-    const valueStats = await Opportunity.aggregate(pipeline);
-    const totalValue = valueStats.length > 0 ? valueStats[0].totalValue : 0;
-    const weightedValue = valueStats.length > 0 ? valueStats[0].weightedValue : 0;
-
-    // By stage
-    const byStage = await Opportunity.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: '$stage',
-          count: { $sum: 1 },
-          totalAmount: { $sum: '$amount' }
-        }
-      },
-      { $sort: { totalAmount: -1 } }
+    const [
+      totalOpportunities,
+      totalValue,
+      wonDeals,
+      lostDeals,
+      byStage,
+      byType
+    ] = await Promise.all([
+      Opportunity.countDocuments(query),
+      Opportunity.aggregate([
+        { $match: query },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Opportunity.countDocuments({ ...query, stage: 'Closed Won' }),
+      Opportunity.countDocuments({ ...query, stage: 'Closed Lost' }),
+      Opportunity.aggregate([
+        { $match: query },
+        { $group: { _id: '$stage', count: { $sum: 1 }, totalAmount: { $sum: '$amount' } } },
+        { $sort: { count: -1 } }
+      ]),
+      Opportunity.aggregate([
+        { $match: query },
+        { $group: { _id: '$type', count: { $sum: 1 } } }
+      ])
     ]);
 
-    // Closing this month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const endOfMonth = new Date(startOfMonth);
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-
-    const closingThisMonth = await Opportunity.countDocuments({
-      ...query,
-      closeDate: { $gte: startOfMonth, $lt: endOfMonth }
-    });
-
-    // Won vs Lost
-    const wonCount = await Opportunity.countDocuments({
-      ...query,
-      stage: 'Closed Won'
-    });
-
-    const lostCount = await Opportunity.countDocuments({
-      ...query,
-      stage: 'Closed Lost'
-    });
-
-    successResponse(res, 200, 'Statistics retrieved successfully', {
-      total,
-      totalValue,
-      weightedValue,
-      closingThisMonth,
-      wonCount,
-      lostCount,
-      byStage
+    successResponse(res, 200, 'Opportunity statistics retrieved successfully', {
+      total: totalOpportunities,
+      totalValue: totalValue[0]?.total || 0,
+      won: wonDeals,
+      lost: lostDeals,
+      byStage,
+      byType
     });
   } catch (error) {
     console.error('Get opportunity stats error:', error);

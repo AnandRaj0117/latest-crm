@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const Account = require('../models/Account');
-const Contact = require('../models/Contact');
 const { successResponse, errorResponse } = require('../utils/response');
 const { logActivity } = require('../middleware/activityLogger');
 
@@ -17,10 +16,10 @@ const getAccounts = async (req, res) => {
       search,
       accountType,
       industry,
-      owner
+      owner,
+      rating
     } = req.query;
 
-    // Build query
     let query = { isActive: true };
 
     // Tenant filtering
@@ -32,8 +31,7 @@ const getAccounts = async (req, res) => {
     if (search) {
       query.$or = [
         { accountName: { $regex: search, $options: 'i' } },
-        { accountNumber: { $regex: search, $options: 'i' } },
-        { website: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } }
       ];
     }
@@ -41,25 +39,14 @@ const getAccounts = async (req, res) => {
     if (accountType) query.accountType = accountType;
     if (industry) query.industry = industry;
     if (owner) query.owner = owner;
+    if (rating) query.rating = rating;
 
-    // Get total count
     const total = await Account.countDocuments(query);
 
-    // Get accounts with pagination
     const accounts = await Account.find(query)
-      .populate({
-        path: 'owner',
-        select: 'firstName lastName email'
-      })
-      .populate({
-        path: 'tenant',
-        select: 'organizationName'
-      })
-      .populate({
-        path: 'parentAccount',
-        select: 'accountName accountNumber'
-      })
-      .select('-customFields')
+      .populate('owner', 'firstName lastName email')
+      .populate('parentAccount', 'accountName')
+      .populate('tenant', 'organizationName')
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 })
@@ -76,7 +63,7 @@ const getAccounts = async (req, res) => {
     });
   } catch (error) {
     console.error('Get accounts error:', error);
-    errorResponse(res, 500, `Server error: ${error.message}`);
+    errorResponse(res, 500, 'Server error');
   }
 };
 
@@ -89,8 +76,8 @@ const getAccount = async (req, res) => {
   try {
     const account = await Account.findById(req.params.id)
       .populate('owner', 'firstName lastName email')
-      .populate('tenant', 'organizationName')
-      .populate('parentAccount', 'accountName accountNumber');
+      .populate('parentAccount', 'accountName accountType')
+      .populate('tenant', 'organizationName');
 
     if (!account) {
       return errorResponse(res, 404, 'Account not found');
@@ -103,15 +90,7 @@ const getAccount = async (req, res) => {
       }
     }
 
-    // Get related contacts
-    const contacts = await Contact.find({ account: account._id, isActive: true })
-      .select('firstName lastName email phone title isPrimary')
-      .limit(10);
-
-    successResponse(res, 200, 'Account retrieved successfully', {
-      account,
-      relatedContacts: contacts
-    });
+    successResponse(res, 200, 'Account retrieved successfully', account);
   } catch (error) {
     console.error('Get account error:', error);
     errorResponse(res, 500, 'Server error');
@@ -129,24 +108,20 @@ const createAccount = async (req, res) => {
       accountName,
       accountType,
       industry,
-      phone,
       website,
+      phone,
       fax,
+      email,
       annualRevenue,
       numberOfEmployees,
+      billingAddress,
+      shippingAddress,
       parentAccount,
-      billingStreet,
-      billingCity,
-      billingState,
-      billingCountry,
-      billingZipCode,
-      shippingStreet,
-      shippingCity,
-      shippingState,
-      shippingCountry,
-      shippingZipCode,
-      description,
-      tags
+      rating,
+      ownership,
+      tickerSymbol,
+      SICCode,
+      description
     } = req.body;
 
     // Validation
@@ -166,11 +141,12 @@ const createAccount = async (req, res) => {
     }
 
     // Check for duplicate account name in same tenant
-    const existingAccount = await Account.findOne({
-      accountName,
-      tenant,
-      isActive: true
+    const existingAccount = await Account.findOne({ 
+      accountName, 
+      tenant, 
+      isActive: true 
     });
+    
     if (existingAccount) {
       return errorResponse(res, 400, 'Account with this name already exists');
     }
@@ -178,30 +154,22 @@ const createAccount = async (req, res) => {
     // Create account
     const account = await Account.create({
       accountName,
-      accountType: accountType || 'Customer',
+      accountType: accountType || 'Prospect',
       industry,
-      phone,
       website,
+      phone,
       fax,
+      email,
       annualRevenue,
       numberOfEmployees,
-      parentAccount: parentAccount || null,
-      billingAddress: {
-        street: billingStreet,
-        city: billingCity,
-        state: billingState,
-        country: billingCountry,
-        zipCode: billingZipCode
-      },
-      shippingAddress: {
-        street: shippingStreet,
-        city: shippingCity,
-        state: shippingState,
-        country: shippingCountry,
-        zipCode: shippingZipCode
-      },
+      billingAddress,
+      shippingAddress,
+      parentAccount,
+      rating,
+      ownership,
+      tickerSymbol,
+      SICCode,
       description,
-      tags: tags || [],
       owner: req.body.owner || req.user._id,
       tenant,
       createdBy: req.user._id,
@@ -210,10 +178,9 @@ const createAccount = async (req, res) => {
 
     await account.populate('owner', 'firstName lastName email');
 
-    // Log activity
     await logActivity(req, 'account.created', 'Account', account._id, {
       accountName: account.accountName,
-      accountNumber: account.accountNumber
+      accountType: account.accountType
     });
 
     successResponse(res, 201, 'Account created successfully', account);
@@ -243,65 +210,26 @@ const updateAccount = async (req, res) => {
       }
     }
 
-    const {
-      accountName,
-      accountType,
-      industry,
-      phone,
-      website,
-      fax,
-      annualRevenue,
-      numberOfEmployees,
-      parentAccount,
-      billingStreet,
-      billingCity,
-      billingState,
-      billingCountry,
-      billingZipCode,
-      shippingStreet,
-      shippingCity,
-      shippingState,
-      shippingCountry,
-      shippingZipCode,
-      description,
-      tags
-    } = req.body;
-
     // Update fields
-    if (accountName) account.accountName = accountName;
-    if (accountType) account.accountType = accountType;
-    if (industry !== undefined) account.industry = industry;
-    if (phone !== undefined) account.phone = phone;
-    if (website !== undefined) account.website = website;
-    if (fax !== undefined) account.fax = fax;
-    if (annualRevenue !== undefined) account.annualRevenue = annualRevenue;
-    if (numberOfEmployees !== undefined) account.numberOfEmployees = numberOfEmployees;
-    if (parentAccount !== undefined) account.parentAccount = parentAccount;
-    if (description !== undefined) account.description = description;
-    if (tags !== undefined) account.tags = tags;
+    const allowedFields = [
+      'accountName', 'accountType', 'industry', 'website', 'phone', 'fax',
+      'email', 'annualRevenue', 'numberOfEmployees', 'billingAddress',
+      'shippingAddress', 'parentAccount', 'rating', 'ownership',
+      'tickerSymbol', 'SICCode', 'description', 'owner', 'tags'
+    ];
 
-    // Update addresses
-    if (billingStreet !== undefined) account.billingAddress.street = billingStreet;
-    if (billingCity !== undefined) account.billingAddress.city = billingCity;
-    if (billingState !== undefined) account.billingAddress.state = billingState;
-    if (billingCountry !== undefined) account.billingAddress.country = billingCountry;
-    if (billingZipCode !== undefined) account.billingAddress.zipCode = billingZipCode;
-
-    if (shippingStreet !== undefined) account.shippingAddress.street = shippingStreet;
-    if (shippingCity !== undefined) account.shippingAddress.city = shippingCity;
-    if (shippingState !== undefined) account.shippingAddress.state = shippingState;
-    if (shippingCountry !== undefined) account.shippingAddress.country = shippingCountry;
-    if (shippingZipCode !== undefined) account.shippingAddress.zipCode = shippingZipCode;
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        account[field] = req.body[field];
+      }
+    });
 
     account.lastModifiedBy = req.user._id;
     await account.save();
 
     await account.populate('owner', 'firstName lastName email');
 
-    // Log activity
-    await logActivity(req, 'account.updated', 'Account', account._id, {
-      accountName: account.accountName
-    });
+    await logActivity(req, 'account.updated', 'Account', account._id);
 
     successResponse(res, 200, 'Account updated successfully', account);
   } catch (error) {
@@ -335,7 +263,6 @@ const deleteAccount = async (req, res) => {
     account.lastModifiedBy = req.user._id;
     await account.save();
 
-    // Log activity
     await logActivity(req, 'account.deleted', 'Account', account._id, {
       accountName: account.accountName
     });
@@ -354,45 +281,46 @@ const deleteAccount = async (req, res) => {
  */
 const getAccountStats = async (req, res) => {
   try {
-    let query = { isActive: true };
+    const query = { isActive: true };
 
     // Tenant filtering
     if (req.user.userType !== 'SAAS_OWNER' && req.user.userType !== 'SAAS_ADMIN') {
       query.tenant = req.user.tenant;
     }
 
-    // Total accounts
-    const total = await Account.countDocuments(query);
-
-    // By type
-    const byType = await Account.aggregate([
-      { $match: query },
-      { $group: { _id: '$accountType', count: { $sum: 1 } } },
-      { $sort: { count: -1 } }
-    ]);
-
-    // By industry
-    const byIndustry = await Account.aggregate([
-      { $match: { ...query, industry: { $ne: null, $ne: '' } } },
-      { $group: { _id: '$industry', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 5 }
-    ]);
-
-    // New accounts this month
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const newThisMonth = await Account.countDocuments({
-      ...query,
-      createdAt: { $gte: startOfMonth }
-    });
-
-    successResponse(res, 200, 'Statistics retrieved successfully', {
-      total,
-      newThisMonth,
+    const [
+      totalAccounts,
+      customers,
+      prospects,
+      partners,
       byType,
+      byIndustry
+    ] = await Promise.all([
+      Account.countDocuments(query),
+      Account.countDocuments({ ...query, accountType: 'Customer' }),
+      Account.countDocuments({ ...query, accountType: 'Prospect' }),
+      Account.countDocuments({ ...query, accountType: 'Partner' }),
+      Account.aggregate([
+        { $match: query },
+        { $group: { _id: '$accountType', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      Account.aggregate([
+        { $match: query },
+        { $group: { _id: '$industry', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 }
+      ])
+    ]);
+
+    successResponse(res, 200, 'Account statistics retrieved successfully', {
+      total: totalAccounts,
+      byType: {
+        customers,
+        prospects,
+        partners
+      },
+      byTypeDetailed: byType,
       byIndustry
     });
   } catch (error) {

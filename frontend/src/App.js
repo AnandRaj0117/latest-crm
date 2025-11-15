@@ -14,6 +14,7 @@ import SaasDashboard from './pages/SaasDashboard';
 
 // CRM pages
 import Leads from './pages/Leads';
+import LeadDetail from './pages/LeadDetail';
 import Accounts from './pages/Accounts';
 import Contacts from './pages/Contacts';
 import Opportunities from './pages/Opportunities';
@@ -96,6 +97,11 @@ function AppRoutes() {
       <Route path="/leads" element={
         <ProtectedRoute>
           <Leads />
+        </ProtectedRoute>
+      } />
+      <Route path="/leads/:id" element={
+        <ProtectedRoute>
+          <LeadDetail />
         </ProtectedRoute>
       } />
       <Route path="/accounts" element={
