@@ -11,6 +11,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import TenantDashboard from './pages/TenantDashboard';
 import SaasDashboard from './pages/SaasDashboard';
+import Tasks from './pages/Tasks';
 
 // CRM pages
 import Leads from './pages/Leads';
@@ -161,6 +162,13 @@ function AppRoutes() {
           <Subscriptions />
         </ProtectedRoute>
       } />
+
+      <Route path="/tasks" element={
+  <ProtectedRoute>
+    <Tasks />
+  </ProtectedRoute>
+} />
+
       <Route path="/saas/billings" element={
         <ProtectedRoute requireSaas>
           <Billings />

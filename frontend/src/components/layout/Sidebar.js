@@ -86,7 +86,7 @@ const Sidebar = () => {
         <div className="nav-section">
           <div className="nav-section-title">Activities</div>
           <Link
-            to="/activities/tasks"
+            to="/tasks"
             className={`nav-item ${isActive('/activities/tasks') ? 'active' : ''}`}
           >
             <span className="nav-item-icon">✓</span>
