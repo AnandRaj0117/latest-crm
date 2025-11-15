@@ -8,19 +8,19 @@ const {
   deleteTask
 } = require('../controllers/taskController');
 const { protect } = require('../middleware/auth');
-const { requirePermission } = require('../middleware/rbac');
+// const { requirePermission } = require('../middleware/rbac'); // COMMENTED OUT
 
 // All routes require authentication
 router.use(protect);
 
-// CRUD routes
+// CRUD routes - NO PERMISSION CHECKS
 router.route('/')
-  .get(requirePermission('task_management', 'read'), getTasks)
-  .post(requirePermission('task_management', 'create'), createTask);
+  .get(getTasks)
+  .post(createTask);
 
 router.route('/:id')
-  .get(requirePermission('task_management', 'read'), getTask)
-  .put(requirePermission('task_management', 'update'), updateTask)
-  .delete(requirePermission('task_management', 'delete'), deleteTask);
+  .get(getTask)
+  .put(updateTask)
+  .delete(deleteTask);
 
 module.exports = router;

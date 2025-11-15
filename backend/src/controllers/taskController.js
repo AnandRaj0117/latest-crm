@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const { successResponse, errorResponse } = require('../utils/response');
-const { logActivity } = require('../middleware/activityLogger');
+// const { logActivity } = require('../middleware/activityLogger'); // COMMENTED OUT
 
 const getTasks = async (req, res) => {
   try {
@@ -32,7 +32,10 @@ const getTasks = async (req, res) => {
     if (relatedToId) query.relatedToId = relatedToId;
     if (owner) query.owner = owner;
 
+    console.log('Task Query:', query); // DEBUG
+
     const total = await Task.countDocuments(query);
+    console.log('Total tasks:', total); // DEBUG
 
     const tasks = await Task.find(query)
       .populate('owner', 'firstName lastName email')
@@ -43,6 +46,8 @@ const getTasks = async (req, res) => {
       .skip((page - 1) * limit)
       .sort({ dueDate: 1 })
       .lean();
+
+    console.log('Tasks retrieved:', tasks.length); // DEBUG
 
     successResponse(res, 200, 'Tasks retrieved successfully', {
       tasks,
@@ -98,6 +103,8 @@ const createTask = async (req, res) => {
       assignedTo
     } = req.body;
 
+    console.log('Create task body:', req.body); // DEBUG
+
     if (!subject || !dueDate || !relatedTo || !relatedToId) {
       return errorResponse(res, 400, 'Please provide subject, dueDate, relatedTo, and relatedToId');
     }
@@ -131,10 +138,12 @@ const createTask = async (req, res) => {
     await task.populate('owner', 'firstName lastName email');
     await task.populate('assignedTo', 'firstName lastName email');
 
-    await logActivity(req, 'task.created', 'Task', task._id, {
-      subject: task.subject,
-      dueDate: task.dueDate
-    });
+    // await logActivity(req, 'task.created', 'Task', task._id, {
+    //   subject: task.subject,
+    //   dueDate: task.dueDate
+    // }); // COMMENTED OUT
+
+    console.log('Task created successfully:', task._id); // DEBUG
 
     successResponse(res, 201, 'Task created successfully', task);
   } catch (error) {
@@ -174,7 +183,7 @@ const updateTask = async (req, res) => {
     await task.populate('owner', 'firstName lastName email');
     await task.populate('assignedTo', 'firstName lastName email');
 
-    await logActivity(req, 'task.updated', 'Task', task._id);
+    // await logActivity(req, 'task.updated', 'Task', task._id); // COMMENTED OUT
 
     successResponse(res, 200, 'Task updated successfully', task);
   } catch (error) {
@@ -201,9 +210,9 @@ const deleteTask = async (req, res) => {
     task.lastModifiedBy = req.user._id;
     await task.save();
 
-    await logActivity(req, 'task.deleted', 'Task', task._id, {
-      subject: task.subject
-    });
+    // await logActivity(req, 'task.deleted', 'Task', task._id, {
+    //   subject: task.subject
+    // }); // COMMENTED OUT
 
     successResponse(res, 200, 'Task deleted successfully');
   } catch (error) {

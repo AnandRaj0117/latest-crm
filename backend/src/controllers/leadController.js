@@ -25,7 +25,7 @@ const getLeads = async (req, res) => {
 
     let query = { 
       isActive: true,
-      isConverted: true 
+      // isConverted: true 
     };
 
     // Tenant filtering
