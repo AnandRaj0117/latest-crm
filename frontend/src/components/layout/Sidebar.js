@@ -1,0 +1,143 @@
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import '../../styles/crm.css';
+
+const Sidebar = () => {
+  const location = useLocation();
+  const { hasPermission } = useAuth();
+
+  const isActive = (path) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  const NavItem = ({ to, icon, label, permission }) => {
+    const hasAccess = permission ? hasPermission(permission, 'read') : true;
+    const active = isActive(to);
+
+    if (!hasAccess) {
+      return (
+        <div className="crm-tooltip">
+          <div className={`nav-item disabled`}>
+            <span className="nav-item-icon">{icon}</span>
+            {label}
+          </div>
+          <span className="crm-tooltip-text">You don't have access</span>
+        </div>
+      );
+    }
+
+    return (
+      <Link to={to} className={`nav-item ${active ? 'active' : ''}`}>
+        <span className="nav-item-icon">{icon}</span>
+        {label}
+      </Link>
+    );
+  };
+
+  return (
+    <div className="crm-sidebar">
+      <div className="sidebar-logo">
+        <h2>🚀 CRM Platform</h2>
+      </div>
+
+      <nav className="sidebar-nav">
+        {/* Dashboard */}
+        <div className="nav-section">
+          <Link
+            to="/dashboard"
+            className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}
+          >
+            <span className="nav-item-icon">🏠</span>
+            Dashboard
+          </Link>
+        </div>
+
+        {/* CRM Section */}
+        <div className="nav-section">
+          <div className="nav-section-title">CRM</div>
+          <NavItem
+            to="/leads"
+            icon="📋"
+            label="Leads"
+            permission="lead_management"
+          />
+          <NavItem
+            to="/accounts"
+            icon="🏢"
+            label="Accounts"
+            permission="account_management"
+          />
+          <NavItem
+            to="/contacts"
+            icon="👤"
+            label="Contacts"
+            permission="contact_management"
+          />
+          <NavItem
+            to="/opportunities"
+            icon="💰"
+            label="Opportunities"
+            permission="opportunity_management"
+          />
+        </div>
+
+        {/* Activities Section */}
+        <div className="nav-section">
+          <div className="nav-section-title">Activities</div>
+          <Link
+            to="/activities/tasks"
+            className={`nav-item ${isActive('/activities/tasks') ? 'active' : ''}`}
+          >
+            <span className="nav-item-icon">✓</span>
+            Tasks
+          </Link>
+          <Link
+            to="/activities/calls"
+            className={`nav-item ${isActive('/activities/calls') ? 'active' : ''}`}
+          >
+            <span className="nav-item-icon">☎</span>
+            Calls
+          </Link>
+          <Link
+            to="/activities/emails"
+            className={`nav-item ${isActive('/activities/emails') ? 'active' : ''}`}
+          >
+            <span className="nav-item-icon">✉</span>
+            Emails
+          </Link>
+        </div>
+
+        {/* Settings Section */}
+        <div className="nav-section">
+          <div className="nav-section-title">Settings</div>
+          <NavItem
+            to="/settings/users"
+            icon="👥"
+            label="Users"
+            permission="user_management"
+          />
+          <NavItem
+            to="/settings/roles"
+            icon="🎭"
+            label="Roles"
+            permission="role_management"
+          />
+          <NavItem
+            to="/settings/groups"
+            icon="👪"
+            label="Groups"
+            permission="group_management"
+          />
+        </div>
+      </nav>
+
+      <div className="sidebar-footer">
+        <div>© 2024 CRM Platform</div>
+        <div style={{ marginTop: '4px', fontSize: '11px' }}>Version 1.0.0</div>
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
