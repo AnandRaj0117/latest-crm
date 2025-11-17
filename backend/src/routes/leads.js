@@ -11,7 +11,8 @@ const {
   convertLead,
   bulkImportLeads,
   bulkUploadLeads,
-  downloadSampleTemplate
+  downloadSampleTemplate,
+  getLeadStats
 } = require('../controllers/leadController');
 const { protect } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
@@ -40,10 +41,14 @@ const upload = multer({
   }
 });
 
+// ════════════════════════════════════════════════════════════════
+// IMPORTANT: SPECIFIC ROUTES FIRST, DYNAMIC ROUTES LAST!
+// ════════════════════════════════════════════════════════════════
+
 // All routes require authentication
 router.use(protect);
 
-// Bulk upload routes (must be before /:id routes)
+// Bulk upload routes (BEFORE /:id routes)
 router.post('/bulk-upload', 
   requirePermission('lead_management', 'import'), 
   upload.single('file'), 
@@ -61,7 +66,13 @@ router.post('/bulk-import',
   bulkImportLeads
 );
 
-// Convert lead route
+// Stats route (BEFORE /:id route)
+router.get('/stats', 
+  requirePermission('lead_management', 'read'), 
+  getLeadStats
+);
+
+// Convert lead route (BEFORE /:id route)
 router.post('/:id/convert', 
   requirePermission('lead_management', 'convert'), 
   convertLead
@@ -72,6 +83,7 @@ router.route('/')
   .get(requirePermission('lead_management', 'read'), getLeads)
   .post(requirePermission('lead_management', 'create'), createLead);
 
+// Dynamic /:id routes (LAST)
 router.route('/:id')
   .get(requirePermission('lead_management', 'read'), getLead)
   .put(requirePermission('lead_management', 'update'), updateLead)

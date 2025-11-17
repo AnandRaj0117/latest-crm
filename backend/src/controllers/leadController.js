@@ -112,6 +112,97 @@ const getLead = async (req, res) => {
 };
 
 /**
+ * @desc    Get lead statistics
+ * @route   GET /api/leads/stats
+ * @access  Private
+ */
+const getLeadStats = async (req, res) => {
+  try {
+    let query = { isActive: true };
+
+    // Tenant filtering
+    if (req.user.userType !== 'SAAS_OWNER' && req.user.userType !== 'SAAS_ADMIN') {
+      query.tenant = req.user.tenant;
+    } else if (req.query.tenant) {
+      query.tenant = req.query.tenant;
+    }
+
+    // Total leads
+    const totalLeads = await Lead.countDocuments(query);
+
+    // Leads by status
+    const leadsByStatus = await Lead.aggregate([
+      { $match: query },
+      { $group: { _id: '$leadStatus', count: { $sum: 1 } } }
+    ]);
+
+    // Leads by source
+    const leadsBySource = await Lead.aggregate([
+      { $match: query },
+      { $group: { _id: '$leadSource', count: { $sum: 1 } } }
+    ]);
+
+    // Leads by rating
+    const leadsByRating = await Lead.aggregate([
+      { $match: query },
+      { $group: { _id: '$rating', count: { $sum: 1 } } }
+    ]);
+
+    // New leads this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    
+    const newLeadsThisMonth = await Lead.countDocuments({
+      ...query,
+      createdAt: { $gte: startOfMonth }
+    });
+
+    // Converted leads
+    const convertedLeads = await Lead.countDocuments({
+      ...query,
+      isConverted: true
+    });
+
+    // Conversion rate
+    const conversionRate = totalLeads > 0 
+      ? parseFloat(((convertedLeads / totalLeads) * 100).toFixed(2)) 
+      : 0;
+
+    // Recent leads
+    const recentLeads = await Lead.find(query)
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('owner', 'firstName lastName')
+      .select('firstName lastName email company leadStatus createdAt');
+
+    successResponse(res, 200, 'Lead statistics retrieved successfully', {
+      totalLeads,
+      newLeadsThisMonth,
+      convertedLeads,
+      conversionRate,
+      leadsByStatus: leadsByStatus.reduce((acc, item) => {
+        acc[item._id || 'Unknown'] = item.count;
+        return acc;
+      }, {}),
+      leadsBySource: leadsBySource.reduce((acc, item) => {
+        acc[item._id || 'Unknown'] = item.count;
+        return acc;
+      }, {}),
+      leadsByRating: leadsByRating.reduce((acc, item) => {
+        acc[item._id || 'Unknown'] = item.count;
+        return acc;
+      }, {}),
+      recentLeads
+    });
+
+  } catch (error) {
+    console.error('Get lead stats error:', error);
+    errorResponse(res, 500, 'Server error');
+  }
+};
+
+/**
  * @desc    Create new lead
  * @route   POST /api/leads
  * @access  Private
@@ -730,5 +821,6 @@ module.exports = {
   convertLead,
   bulkImportLeads,
   bulkUploadLeads,
-  downloadSampleTemplate
+  downloadSampleTemplate,
+  getLeadStats
 };
