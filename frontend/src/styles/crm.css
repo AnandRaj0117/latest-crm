@@ -61,7 +61,7 @@
 /* Sidebar Styles */
 .crm-sidebar {
   width: var(--sidebar-width);
-  background-color: #f1eded;
+  background-color: #1e71cf;
   color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
@@ -75,7 +75,7 @@
 
 .sidebar-logo {
   padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgb(250, 242, 242);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -112,7 +112,7 @@
   display: flex;
   align-items: center;
   padding: 12px 20px;
-  color: var(--sidebar-text);
+  color: white;
   text-decoration: none;
   transition: all var(--transition-fast);
   cursor: pointer;

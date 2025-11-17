@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import TooltipButton from '../components/common/TooltipButton';
 import '../styles/crm.css';
+import BulkUploadForm from '../components/BulkUploadForm';
+
 
 const Leads = () => {
   const navigate = useNavigate();
@@ -382,7 +384,7 @@ const Leads = () => {
         )}
       </div>
 
-      {/* Create Lead Modal - COMPLETE ZOHO STYLE */}
+   
       <Modal
         isOpen={showCreateModal}
         onClose={() => {
@@ -949,9 +951,19 @@ const Leads = () => {
         </form>
       </Modal>
 
-      {showBulkUploadModal && (
-        <div>Bulk upload modal - To be implemented</div>
-      )}
+     {showBulkUploadModal && (
+  <Modal 
+    isOpen={showBulkUploadModal} 
+    onClose={() => setShowBulkUploadModal(false)} 
+    title="Bulk Upload Leads"
+    size="large"
+  >
+    <BulkUploadForm 
+      onClose={() => setShowBulkUploadModal(false)} 
+      onSuccess={loadLeads} 
+    />
+  </Modal>
+)}
     </DashboardLayout>
   );
 };

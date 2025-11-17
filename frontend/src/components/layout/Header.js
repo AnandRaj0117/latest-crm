@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import '../../styles/crm.css';
 
 const Header = ({ title, actionButton }) => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -11,6 +13,11 @@ const Header = ({ title, actionButton }) => {
     const firstInitial = user.firstName ? user.firstName[0] : '';
     const lastInitial = user.lastName ? user.lastName[0] : '';
     return (firstInitial + lastInitial).toUpperCase();
+  };
+
+  const handleNavigation = (path) => {
+    setShowUserMenu(false);
+    navigate(path);
   };
 
   return (
@@ -55,23 +62,24 @@ const Header = ({ title, actionButton }) => {
               <div className="user-menu-dropdown">
                 <div
                   className="user-menu-item"
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    // Navigate to profile
-                  }}
+                  onClick={() => handleNavigation('/profile')}
                 >
                   <span>👤</span>
                   My Profile
                 </div>
                 <div
                   className="user-menu-item"
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    // Navigate to settings
-                  }}
+                  onClick={() => handleNavigation('/settings')}
                 >
                   <span>⚙️</span>
                   Settings
+                </div>
+                <div
+                  className="user-menu-item"
+                  onClick={() => handleNavigation('/change-password')}
+                >
+                  <span>🔐</span>
+                  Change Password
                 </div>
                 <hr style={{ margin: '8px 0', border: 'none', borderTop: '1px solid #E5E7EB' }} />
                 <div

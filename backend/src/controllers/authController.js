@@ -4,6 +4,16 @@ const Subscription = require('../models/Subscription');
 const { generateToken } = require('../utils/jwt');
 const { successResponse, errorResponse } = require('../utils/response');
 const { logActivity } = require('../middleware/activityLogger');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const { sendPasswordResetOTP } = require('../utils/emailService');
+
+/**
+ * Generate 6-digit OTP
+ */
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 /**
  * @desc    Login user
@@ -219,9 +229,246 @@ const logout = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Send OTP for password reset
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return errorResponse(res, 400, 'Please provide email');
+    }
+
+    // Find user
+    const user = await User.findOne({ email, isActive: true });
+
+    if (!user) {
+      // Don't reveal if user exists - security best practice
+      return successResponse(res, 200, 'If an account exists with this email, you will receive an OTP.');
+    }
+
+    // Generate 6-digit OTP
+    const otp = generateOTP();
+    
+    // Hash OTP before saving
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+    // Save OTP to user
+    user.resetPasswordOTP = otpHash;
+    user.resetPasswordOTPExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.resetPasswordOTPVerified = false;
+    await user.save();
+
+    // Send OTP email
+    try {
+      await sendPasswordResetOTP(
+        user.email,
+        otp,
+        `${user.firstName} ${user.lastName}`
+      );
+
+      console.log('✅ OTP sent to:', user.email);
+      console.log('🔢 OTP (for testing):', otp); // REMOVE IN PRODUCTION
+
+      successResponse(res, 200, 'OTP sent to your email', {
+        message: 'Please check your email for the OTP code.',
+        email: user.email
+      });
+
+    } catch (emailError) {
+      console.error('❌ OTP email failed:', emailError);
+
+      // Clear OTP if email fails
+      user.resetPasswordOTP = undefined;
+      user.resetPasswordOTPExpire = undefined;
+      await user.save();
+
+      return errorResponse(res, 500, 'Failed to send OTP. Please try again.');
+    }
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    errorResponse(res, 500, 'Server error');
+  }
+};
+
+/**
+ * @desc    Verify OTP
+ * @route   POST /api/auth/verify-otp
+ * @access  Public
+ */
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return errorResponse(res, 400, 'Please provide email and OTP');
+    }
+
+    // Hash the provided OTP
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+    // Find user with valid OTP
+    const user = await User.findOne({
+      email,
+      resetPasswordOTP: otpHash,
+      resetPasswordOTPExpire: { $gt: Date.now() },
+      isActive: true
+    });
+
+    if (!user) {
+      return errorResponse(res, 400, 'Invalid or expired OTP');
+    }
+
+    // Mark OTP as verified
+    user.resetPasswordOTPVerified = true;
+    await user.save();
+
+    console.log('✅ OTP verified for:', user.email);
+
+    successResponse(res, 200, 'OTP verified successfully', {
+      message: 'You can now reset your password',
+      email: user.email
+    });
+
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    errorResponse(res, 500, 'Server error');
+  }
+};
+
+/**
+ * @desc    Reset Password with verified OTP
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return errorResponse(res, 400, 'Please provide email and new password');
+    }
+
+    if (newPassword.length < 6) {
+      return errorResponse(res, 400, 'Password must be at least 6 characters');
+    }
+
+    // Find user with verified OTP
+    const user = await User.findOne({
+      email,
+      resetPasswordOTPVerified: true,
+      resetPasswordOTPExpire: { $gt: Date.now() },
+      isActive: true
+    });
+
+    if (!user) {
+      return errorResponse(res, 400, 'OTP not verified or expired. Please request a new OTP.');
+    }
+
+    // ✅ IMPORTANT: Set password directly - User model will hash it automatically
+    user.password = newPassword;
+
+    // Clear OTP fields
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordOTPExpire = undefined;
+    user.resetPasswordOTPVerified = false;
+
+    await user.save();
+
+    // Log activity - skip if enum not available
+    try {
+      await logActivity(
+        { user, ip: req.ip, get: req.get.bind(req), method: req.method, originalUrl: req.originalUrl, connection: req.connection },
+        'password_reset', // Changed from 'password.reset'
+        'User',
+        user._id
+      );
+    } catch (logError) {
+      console.log('Activity log skipped (enum not available)');
+    }
+
+    console.log('✅ Password reset successful for:', user.email);
+
+    successResponse(res, 200, 'Password reset successful', {
+      message: 'You can now login with your new password'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    errorResponse(res, 500, 'Server error');
+  }
+};
+
+/**
+ * @desc    Change Password (Logged in users)
+ * @route   POST /api/auth/change-password
+ * @access  Private
+ */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return errorResponse(res, 400, 'Please provide current and new password');
+    }
+
+    if (newPassword.length < 6) {
+      return errorResponse(res, 400, 'New password must be at least 6 characters');
+    }
+
+    // Get user
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return errorResponse(res, 404, 'User not found');
+    }
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+
+    if (!isMatch) {
+      return errorResponse(res, 400, 'Current password is incorrect');
+    }
+
+    // Check if new password is same as current
+    const isSamePassword = await user.comparePassword(newPassword);
+    if (isSamePassword) {
+      return errorResponse(res, 400, 'New password must be different from current password');
+    }
+
+    // ✅ IMPORTANT: Set password directly - User model will hash it automatically
+    user.password = newPassword;
+
+    await user.save();
+
+    // Log activity - skip if enum not available
+    try {
+      await logActivity(req, 'password_changed', 'User', user._id);
+    } catch (logError) {
+      console.log('Activity log skipped (enum not available)');
+    }
+
+    console.log('✅ Password changed for:', user.email);
+
+    successResponse(res, 200, 'Password changed successfully');
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    errorResponse(res, 500, 'Server error');
+  }
+};
+
 module.exports = {
   login,
   registerTenant,
   getMe,
-  logout
+  logout,
+  forgotPassword,
+  verifyOTP,
+  resetPassword,
+  changePassword
 };

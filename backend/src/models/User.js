@@ -73,6 +73,17 @@ const userSchema = new mongoose.Schema({
   // For SAAS_OWNER and SAAS_ADMIN: their department/role in SAAS company
   saasRole: {
     type: String
+  },
+  // Password reset fields - OTP based
+  resetPasswordOTP: {
+    type: String
+  },
+  resetPasswordOTPExpire: {
+    type: Date
+  },
+  resetPasswordOTPVerified: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

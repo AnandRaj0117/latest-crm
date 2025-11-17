@@ -25,7 +25,7 @@ const getLeads = async (req, res) => {
 
     let query = { 
       isActive: true,
-      // isConverted: true 
+    
     };
 
     // Tenant filtering
@@ -493,6 +493,234 @@ const bulkImportLeads = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Bulk upload leads from Excel/CSV file
+ * @route   POST /api/leads/bulk-upload
+ * @access  Private
+ */
+const bulkUploadLeads = async (req, res) => {
+  const xlsx = require('xlsx');
+  const fs = require('fs');
+
+  try {
+    if (!req.file) {
+      return errorResponse(res, 400, 'Please upload a file');
+    }
+
+    const fileExtension = req.file.originalname.split('.').pop().toLowerCase();
+    let leadsData = [];
+    const errors = [];
+
+    // Read Excel/CSV file
+    if (fileExtension === 'xlsx' || fileExtension === 'xls' || fileExtension === 'csv') {
+      const workbook = xlsx.readFile(req.file.path);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      leadsData = xlsx.utils.sheet_to_json(worksheet);
+    } else {
+      fs.unlinkSync(req.file.path);
+      return errorResponse(res, 400, 'Invalid file format. Please upload Excel (.xlsx, .xls) or CSV file');
+    }
+
+    // Determine tenant
+    let tenant;
+    if (req.user.userType === 'SAAS_OWNER' || req.user.userType === 'SAAS_ADMIN') {
+      tenant = req.body.tenant;
+      if (!tenant) {
+        fs.unlinkSync(req.file.path);
+        return errorResponse(res, 400, 'Tenant is required');
+      }
+    } else {
+      tenant = req.user.tenant;
+    }
+
+    const createdLeads = [];
+
+    // Process each lead
+    for (let i = 0; i < leadsData.length; i++) {
+      const row = leadsData[i];
+      
+      try {
+        // Map columns (flexible column naming)
+        const leadData = {
+          firstName: row['First Name'] || row['firstName'] || row['first_name'] || '',
+          lastName: row['Last Name'] || row['lastName'] || row['last_name'] || '',
+          email: row['Email'] || row['email'] || '',
+          phone: row['Phone'] || row['phone'] || '',
+          mobilePhone: row['Mobile'] || row['mobilePhone'] || row['mobile_phone'] || '',
+          company: row['Company'] || row['company'] || '',
+          jobTitle: row['Job Title'] || row['jobTitle'] || row['job_title'] || '',
+          leadSource: row['Lead Source'] || row['leadSource'] || row['lead_source'] || 'Website',
+          leadStatus: row['Lead Status'] || row['leadStatus'] || row['lead_status'] || 'New',
+          rating: row['Rating'] || row['rating'] || 'Warm',
+          industry: row['Industry'] || row['industry'] || '',
+          website: row['Website'] || row['website'] || '',
+          street: row['Street'] || row['street'] || '',
+          city: row['City'] || row['city'] || '',
+          state: row['State'] || row['state'] || '',
+          country: row['Country'] || row['country'] || '',
+          zipCode: row['Zip Code'] || row['zipCode'] || row['zip_code'] || '',
+          description: row['Description'] || row['description'] || '',
+          numberOfEmployees: row['No. of Employees'] || row['numberOfEmployees'] || '',
+          annualRevenue: row['Annual Revenue'] || row['annualRevenue'] || '',
+          tenant,
+          owner: req.user._id,
+          createdBy: req.user._id,
+          lastModifiedBy: req.user._id
+        };
+
+        // Validate - at least one identifying field required
+        if (!leadData.firstName && !leadData.lastName && !leadData.email && !leadData.company) {
+          errors.push({
+            row: i + 2,
+            error: 'At least one of First Name, Last Name, Email, or Company is required'
+          });
+          continue;
+        }
+
+        // Check for duplicate email if email provided
+        if (leadData.email) {
+          const existingLead = await Lead.findOne({ 
+            email: leadData.email, 
+            tenant,
+            isActive: true,
+            isConverted: false
+          });
+
+          if (existingLead) {
+            errors.push({
+              row: i + 2,
+              email: leadData.email,
+              error: 'Email already exists'
+            });
+            continue;
+          }
+        }
+
+        // Create lead
+        const lead = await Lead.create(leadData);
+        createdLeads.push(lead);
+
+      } catch (error) {
+        errors.push({
+          row: i + 2,
+          error: error.message
+        });
+      }
+    }
+
+    // Delete uploaded file
+    fs.unlinkSync(req.file.path);
+
+    // Log activity
+    await logActivity(req, 'leads.bulk_upload', 'Lead', null, {
+      totalRows: leadsData.length,
+      successCount: createdLeads.length,
+      errorCount: errors.length
+    });
+
+    successResponse(res, 200, `Successfully uploaded ${createdLeads.length} leads`, {
+      totalRows: leadsData.length,
+      successCount: createdLeads.length,
+      errorCount: errors.length,
+      errors: errors.slice(0, 20), // Return first 20 errors
+      leads: createdLeads
+    });
+
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    
+    // Delete uploaded file if exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    errorResponse(res, 500, 'Failed to upload leads: ' + error.message);
+  }
+};
+
+/**
+ * @desc    Download sample template for bulk upload
+ * @route   GET /api/leads/download-template
+ * @access  Private
+ */
+const downloadSampleTemplate = async (req, res) => {
+  const xlsx = require('xlsx');
+  
+  try {
+    const sampleData = [
+      {
+        'First Name': 'John',
+        'Last Name': 'Doe',
+        'Email': 'john.doe@example.com',
+        'Phone': '+91-9876543210',
+        'Mobile': '+91-9876543210',
+        'Company': 'Tech Corp Pvt Ltd',
+        'Job Title': 'Chief Executive Officer',
+        'Lead Source': 'Website',
+        'Lead Status': 'New',
+        'Rating': 'Hot',
+        'Industry': 'Technology',
+        'Website': 'https://techcorp.com',
+        'Street': '123 Main Street, Sector 5',
+        'City': 'Mumbai',
+        'State': 'Maharashtra',
+        'Country': 'India',
+        'Zip Code': '400001',
+        'No. of Employees': '100',
+        'Annual Revenue': '10000000',
+        'Description': 'Potential enterprise client interested in CRM solutions'
+      },
+      {
+        'First Name': 'Jane',
+        'Last Name': 'Smith',
+        'Email': 'jane.smith@example.com',
+        'Phone': '+91-9876543211',
+        'Mobile': '+91-9876543211',
+        'Company': 'Business Solutions Ltd',
+        'Job Title': 'Sales Director',
+        'Lead Source': 'Referral',
+        'Lead Status': 'Contacted',
+        'Rating': 'Warm',
+        'Industry': 'Consulting',
+        'Website': 'https://businesssolutions.com',
+        'Street': '456 Park Avenue',
+        'City': 'Delhi',
+        'State': 'Delhi',
+        'Country': 'India',
+        'Zip Code': '110001',
+        'No. of Employees': '50',
+        'Annual Revenue': '5000000',
+        'Description': 'Looking for marketing automation tools'
+      }
+    ];
+
+    const worksheet = xlsx.utils.json_to_sheet(sampleData);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'Leads Sample');
+
+    // Set column widths
+    const wscols = [
+      { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 15 },
+      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 15 },
+      { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 20 },
+      { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+      { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 40 }
+    ];
+    worksheet['!cols'] = wscols;
+
+    const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Disposition', 'attachment; filename=leads_bulk_upload_template.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('Download template error:', error);
+    errorResponse(res, 500, 'Failed to download template');
+  }
+};
+
 module.exports = {
   getLeads,
   getLead,
@@ -500,5 +728,7 @@ module.exports = {
   updateLead,
   deleteLead,
   convertLead,
-  bulkImportLeads
+  bulkImportLeads,
+  bulkUploadLeads,
+  downloadSampleTemplate
 };

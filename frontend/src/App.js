@@ -22,6 +22,10 @@ import Contacts from './pages/Contacts';
 import Opportunities from './pages/Opportunities';
 import MeetingDetail from './pages/MeetingDetail';
 
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import ChangePassword from './pages/ChangePassword';
+
 // User management (Settings)
 import Users from './pages/Users';
 import Roles from './pages/Roles';
@@ -170,6 +174,11 @@ function AppRoutes() {
 <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
 <Route path="/calls" element={<ProtectedRoute><Calls /></ProtectedRoute>} />
 <Route path="/meetings/:id" element={<ProtectedRoute><MeetingDetail /></ProtectedRoute>} />
+
+
+<Route path="/forgot-password" element={<ForgotPassword />} />
+<Route path="/reset-password/:token" element={<ResetPassword />} />
+<Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
       <Route path="/saas/subscriptions" element={
         <ProtectedRoute requireSaas>
