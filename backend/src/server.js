@@ -4,9 +4,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const connectDB = require('./config/database');
-const taskRoutes = require('./routes/taskRoutes');
-const noteRoutes = require('./routes/noteRoutes');
-
 
 // Initialize express app
 const app = express();
@@ -14,17 +11,37 @@ const app = express();
 // Connect to database
 connectDB();
 
-// Middleware
-app.use(helmet()); // Security headers
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  credentials: true
+// ✅✅✅ CRITICAL: CORS MUST BE FIRST! ✅✅✅
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+// Helmet with CORS-friendly settings
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(morgan('dev')); // Logging
-app.use(express.json()); // Body parser
+
+// Other middleware
+app.use(morgan('dev'));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check route
+// Health check
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -33,7 +50,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes (will be added)
+// Auth & User Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/tenants', require('./routes/tenants'));
@@ -49,8 +66,10 @@ app.use('/api/leads', require('./routes/leads'));
 app.use('/api/accounts', require('./routes/accounts'));
 app.use('/api/contacts', require('./routes/contacts'));
 app.use('/api/opportunities', require('./routes/opportunities'));
-app.use('/api/tasks', taskRoutes);
-app.use('/api/notes', noteRoutes);
+app.use('/api/tasks', require('./routes/taskRoutes'));
+app.use('/api/notes', require('./routes/noteRoutes'));
+app.use('/api/meetings', require('./routes/meetingRoutes'));
+app.use('/api/calls', require('./routes/callRoutes'));
 
 // 404 handler
 app.use((req, res) => {
@@ -62,8 +81,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-
+  console.error('❌ Error:', err);
   res.status(err.statusCode || 500).json({
     success: false,
     message: err.message || 'Internal server error',
@@ -74,7 +92,10 @@ app.use((err, req, res, next) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  console.log('═══════════════════════════════════════');
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`✅ CORS enabled for http://localhost:3000`);
+  console.log('═══════════════════════════════════════');
 });
 
 module.exports = app;

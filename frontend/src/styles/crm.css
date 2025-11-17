@@ -61,7 +61,7 @@
 /* Sidebar Styles */
 .crm-sidebar {
   width: var(--sidebar-width);
-  background-color: #4a5468;
+  background-color: #f1eded;
   color: var(--sidebar-text);
   display: flex;
   flex-direction: column;

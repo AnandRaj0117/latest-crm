@@ -87,16 +87,23 @@ const Sidebar = () => {
           <div className="nav-section-title">Activities</div>
           <Link
             to="/tasks"
-            className={`nav-item ${isActive('/activities/tasks') ? 'active' : ''}`}
+            className={`nav-item ${isActive('/tasks') ? 'active' : ''}`}
           >
             <span className="nav-item-icon">✓</span>
             Tasks
           </Link>
           <Link
-            to="/activities/calls"
-            className={`nav-item ${isActive('/activities/calls') ? 'active' : ''}`}
+            to="/meetings"
+            className={`nav-item ${isActive('/meetings') ? 'active' : ''}`}
           >
-            <span className="nav-item-icon">☎</span>
+            <span className="nav-item-icon">📅</span>
+            Meetings
+          </Link>
+          <Link
+            to="/calls"
+            className={`nav-item ${isActive('/calls') ? 'active' : ''}`}
+          >
+            <span className="nav-item-icon">📞</span>
             Calls
           </Link>
           <Link

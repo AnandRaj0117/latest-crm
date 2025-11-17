@@ -6,7 +6,6 @@ import { taskService } from '../services/taskService';
 import { noteService } from '../services/noteService';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
-
 import '../styles/crm.css';
 
 const LeadDetail = () => {
@@ -16,6 +15,8 @@ const LeadDetail = () => {
 
   const [lead, setLead] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [meetings, setMeetings] = useState([]);
+  const [calls, setCalls] = useState([]);
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,12 +28,13 @@ const LeadDetail = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
 
-  // Form data for edit
+  // Form data
   const [formData, setFormData] = useState({});
 
-  // Task data
   const [taskData, setTaskData] = useState({
     subject: '',
     dueDate: '',
@@ -41,13 +43,30 @@ const LeadDetail = () => {
     description: ''
   });
 
-  // Note data
+  const [meetingData, setMeetingData] = useState({
+    title: '',
+    from: '',
+    to: '',
+    location: '',
+    meetingType: 'Online',
+    description: ''
+  });
+
+  const [callData, setCallData] = useState({
+    subject: '',
+    callStartTime: '',
+    callDuration: '',
+    callType: 'Outbound',
+    callPurpose: 'Follow-up',
+    callResult: 'Completed',
+    description: ''
+  });
+
   const [noteData, setNoteData] = useState({
     title: '',
     content: ''
   });
 
-  // Conversion data
   const [conversionData, setConversionData] = useState({
     createAccount: true,
     createContact: true,
@@ -61,6 +80,8 @@ const LeadDetail = () => {
   useEffect(() => {
     loadLead();
     loadTasks();
+    loadMeetings();
+    loadCalls();
     loadNotes();
   }, [id]);
 
@@ -72,7 +93,6 @@ const LeadDetail = () => {
       
       if (response && response.success && response.data) {
         setLead(response.data);
-        // Pre-fill conversion data
         setConversionData(prev => ({
           ...prev,
           accountName: response.data.company || `${response.data.firstName} ${response.data.lastName}`,
@@ -101,6 +121,34 @@ const LeadDetail = () => {
       }
     } catch (err) {
       console.error('Load tasks error:', err);
+    }
+  };
+
+  const loadMeetings = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/meetings?relatedTo=Lead&relatedToId=${id}&limit=100`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setMeetings(data.data.meetings || []);
+      }
+    } catch (err) {
+      console.error('Load meetings error:', err);
+    }
+  };
+
+  const loadCalls = async () => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/calls?relatedTo=Lead&relatedToId=${id}&limit=100`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setCalls(data.data.calls || []);
+      }
+    } catch (err) {
+      console.error('Load calls error:', err);
     }
   };
 
@@ -135,6 +183,68 @@ const LeadDetail = () => {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create task');
+    }
+  };
+
+  const handleCreateMeeting = async (e) => {
+    e.preventDefault();
+    try {
+      setError('');
+      const response = await fetch('http://localhost:4000/api/meetings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...meetingData,
+          relatedTo: 'Lead',
+          relatedToId: id
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Meeting created successfully!');
+        setShowMeetingModal(false);
+        setMeetingData({ title: '', from: '', to: '', location: '', meetingType: 'Online', description: '' });
+        loadMeetings();
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Failed to create meeting');
+      }
+    } catch (err) {
+      setError('Failed to create meeting');
+    }
+  };
+
+  const handleCreateCall = async (e) => {
+    e.preventDefault();
+    try {
+      setError('');
+      const response = await fetch('http://localhost:4000/api/calls', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...callData,
+          relatedTo: 'Lead',
+          relatedToId: id
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Call logged successfully!');
+        setShowCallModal(false);
+        setCallData({ subject: '', callStartTime: '', callDuration: '', callType: 'Outbound', callPurpose: 'Follow-up', callResult: 'Completed', description: '' });
+        loadCalls();
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(data.message || 'Failed to log call');
+      }
+    } catch (err) {
+      setError('Failed to log call');
     }
   };
 
@@ -257,7 +367,6 @@ const LeadDetail = () => {
         setSuccess('Lead converted successfully!');
         setShowConvertModal(false);
         
-        // Redirect to account or opportunity detail page
         if (response.data.opportunity) {
           setTimeout(() => {
             navigate(`/opportunities/${response.data.opportunity._id}`);
@@ -320,6 +429,18 @@ const LeadDetail = () => {
   if (!lead) {
     return null;
   }
+
+  const openActivities = [
+    ...tasks.filter(t => t.status !== 'Completed'),
+    ...meetings.filter(m => m.status === 'Scheduled'),
+    ...calls.filter(c => c.callResult !== 'Completed')
+  ];
+
+  const closedActivities = [
+    ...tasks.filter(t => t.status === 'Completed'),
+    ...meetings.filter(m => m.status === 'Completed'),
+    ...calls.filter(c => c.callResult === 'Completed')
+  ];
 
   return (
     <DashboardLayout title="Lead Details">
@@ -577,46 +698,6 @@ const LeadDetail = () => {
                   <p style={{ fontSize: '14px', lineHeight: '1.6', color: '#374151' }}>{lead.description}</p>
                 </div>
               )}
-
-              {lead.isConverted && (
-                <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #E5E7EB' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>Conversion Information</h4>
-                  <div style={{ display: 'flex', gap: '24px' }}>
-                    <div>
-                      <label style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: '4px' }}>Converted Date</label>
-                      <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                        {lead.convertedDate ? new Date(lead.convertedDate).toLocaleDateString() : '-'}
-                      </p>
-                    </div>
-                    {lead.convertedTo?.account && (
-                      <div>
-                        <label style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: '4px' }}>Account</label>
-                        <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                          <a 
-                            href={`/accounts/${lead.convertedTo.account._id}`}
-                            style={{ color: '#3B82F6', textDecoration: 'none' }}
-                          >
-                            {lead.convertedTo.account.accountName}
-                          </a>
-                        </p>
-                      </div>
-                    )}
-                    {lead.convertedTo?.contact && (
-                      <div>
-                        <label style={{ fontSize: '12px', color: '#6B7280', display: 'block', marginBottom: '4px' }}>Contact</label>
-                        <p style={{ fontSize: '14px', fontWeight: '500' }}>
-                          <a 
-                            href={`/contacts/${lead.convertedTo.contact._id}`}
-                            style={{ color: '#3B82F6', textDecoration: 'none' }}
-                          >
-                            {lead.convertedTo.contact.firstName} {lead.convertedTo.contact.lastName}
-                          </a>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -626,7 +707,6 @@ const LeadDetail = () => {
               <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '20px' }}>Activity Timeline</h3>
               <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
                 <p>Timeline feature coming soon...</p>
-                <p style={{ fontSize: '14px', marginTop: '8px' }}>This will show all activities, notes, and changes related to this lead.</p>
               </div>
             </div>
           )}
@@ -636,39 +716,71 @@ const LeadDetail = () => {
             <div>
               <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '20px' }}>Related Lists</h3>
               
-              {/* Open Activities */}
+              {/* OPEN ACTIVITIES */}
               <div style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>Open Activities</h4>
-                  <button 
-                    className="crm-btn crm-btn-sm crm-btn-primary"
-                    onClick={() => setShowTaskModal(true)}
-                  >
-                    + New Task
-                  </button>
+                  <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>
+                    Open Activities ({openActivities.length})
+                  </h4>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="crm-btn crm-btn-sm crm-btn-primary"
+                      onClick={() => setShowTaskModal(true)}
+                    >
+                      + Task
+                    </button>
+                    <button 
+                      className="crm-btn crm-btn-sm crm-btn-primary"
+                      onClick={() => setShowMeetingModal(true)}
+                    >
+                      + Meeting
+                    </button>
+                    <button 
+                      className="crm-btn crm-btn-sm crm-btn-primary"
+                      onClick={() => setShowCallModal(true)}
+                    >
+                      + Call
+                    </button>
+                  </div>
                 </div>
-                {tasks.length === 0 ? (
+                {openActivities.length === 0 ? (
                   <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '20px', textAlign: 'center', color: '#666' }}>
-                    <p>No open activities found</p>
+                    No open activities found
                   </div>
                 ) : (
                   <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
-                    <table className="crm-table">
+                    <table className="crm-table" style={{ margin: 0 }}>
                       <thead>
                         <tr>
+                          <th>Type</th>
                           <th>Subject</th>
-                          <th>Due Date</th>
+                          <th>Date/Time</th>
                           <th>Status</th>
-                          <th>Priority</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {tasks.map(task => (
+                        {tasks.filter(t => t.status !== 'Completed').map(task => (
                           <tr key={task._id}>
+                            <td>📋 Task</td>
                             <td>{task.subject}</td>
                             <td>{new Date(task.dueDate).toLocaleDateString()}</td>
                             <td><span className="status-badge">{task.status}</span></td>
-                            <td><span className="rating-badge">{task.priority}</span></td>
+                          </tr>
+                        ))}
+                        {meetings.filter(m => m.status === 'Scheduled').map(meeting => (
+                          <tr key={meeting._id}>
+                            <td>📅 Meeting</td>
+                            <td>{meeting.title}</td>
+                            <td>{new Date(meeting.from).toLocaleString()}</td>
+                            <td><span className="status-badge">{meeting.status}</span></td>
+                          </tr>
+                        ))}
+                        {calls.filter(c => c.callResult !== 'Completed').map(call => (
+                          <tr key={call._id}>
+                            <td>📞 Call</td>
+                            <td>{call.subject}</td>
+                            <td>{new Date(call.callStartTime).toLocaleString()}</td>
+                            <td><span className="status-badge">{call.callResult}</span></td>
                           </tr>
                         ))}
                       </tbody>
@@ -677,20 +789,95 @@ const LeadDetail = () => {
                 )}
               </div>
 
-              {/* Notes */}
+              {/* CLOSED ACTIVITIES */}
+              <div style={{ marginBottom: '32px' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
+                  Closed Activities ({closedActivities.length})
+                </h4>
+                {closedActivities.length === 0 ? (
+                  <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '20px', textAlign: 'center', color: '#666' }}>
+                    No closed activities found
+                  </div>
+                ) : (
+                  <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
+                    <table className="crm-table" style={{ margin: 0 }}>
+                      <thead>
+                        <tr>
+                          <th>Type</th>
+                          <th>Subject</th>
+                          <th>Date/Time</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tasks.filter(t => t.status === 'Completed').map(task => (
+                          <tr key={task._id}>
+                            <td>📋 Task</td>
+                            <td>{task.subject}</td>
+                            <td>{new Date(task.dueDate).toLocaleDateString()}</td>
+                            <td><span className="status-badge">Completed</span></td>
+                          </tr>
+                        ))}
+                        {meetings.filter(m => m.status === 'Completed').map(meeting => (
+                          <tr key={meeting._id}>
+                            <td>📅 Meeting</td>
+                            <td>{meeting.title}</td>
+                            <td>{new Date(meeting.from).toLocaleString()}</td>
+                            <td><span className="status-badge">Completed</span></td>
+                          </tr>
+                        ))}
+                        {calls.filter(c => c.callResult === 'Completed').map(call => (
+                          <tr key={call._id}>
+                            <td>📞 Call</td>
+                            <td>{call.subject}</td>
+                            <td>{new Date(call.callStartTime).toLocaleString()}</td>
+                            <td><span className="status-badge">Completed</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* EMAILS */}
               <div style={{ marginBottom: '32px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>Notes</h4>
+                  <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>Emails</h4>
+                  <button className="crm-btn crm-btn-sm crm-btn-primary">+ Compose Email</button>
+                </div>
+                <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ borderBottom: '1px solid #E5E7EB', display: 'flex', gap: '16px', padding: '8px 16px', background: '#F9FAFB' }}>
+                    <button style={{ padding: '4px 12px', border: 'none', background: 'transparent', cursor: 'pointer', fontWeight: '500', borderBottom: '2px solid #3B82F6' }}>
+                      Mails
+                    </button>
+                    <button style={{ padding: '4px 12px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#666' }}>
+                      Drafts
+                    </button>
+                    <button style={{ padding: '4px 12px', border: 'none', background: 'transparent', cursor: 'pointer', color: '#666' }}>
+                      Scheduled
+                    </button>
+                  </div>
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                    No emails found
+                  </div>
+                </div>
+              </div>
+
+              {/* NOTES */}
+              <div style={{ marginBottom: '32px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>Notes ({notes.length})</h4>
                   <button 
                     className="crm-btn crm-btn-sm crm-btn-primary"
                     onClick={() => setShowNoteModal(true)}
                   >
-                    + New Note
+                    + Add Note
                   </button>
                 </div>
                 {notes.length === 0 ? (
                   <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '20px', textAlign: 'center', color: '#666' }}>
-                    <p>No notes found</p>
+                    No notes found
                   </div>
                 ) : (
                   <div>
@@ -712,31 +899,22 @@ const LeadDetail = () => {
                 )}
               </div>
 
-              {/* Attachments */}
-              <div style={{ marginBottom: '32px' }}>
+              {/* ATTACHMENTS */}
+              <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>Attachments</h4>
                   <button className="crm-btn crm-btn-sm crm-btn-primary">+ Attach File</button>
                 </div>
                 <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '20px', textAlign: 'center', color: '#666' }}>
-                  <p>No attachments found</p>
-                </div>
-              </div>
-
-              {/* Emails */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h4 style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>Emails</h4>
-                  <button className="crm-btn crm-btn-sm crm-btn-primary">+ Compose Email</button>
-                </div>
-                <div style={{ border: '1px solid #E5E7EB', borderRadius: '8px', padding: '20px', textAlign: 'center', color: '#666' }}>
-                  <p>No emails found</p>
+                  No attachments found
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* MODALS */}
 
       {/* Task Modal */}
       <Modal isOpen={showTaskModal} onClose={() => setShowTaskModal(false)} title="Create Task">
@@ -791,6 +969,150 @@ const LeadDetail = () => {
         </form>
       </Modal>
 
+      {/* Meeting Modal */}
+      <Modal isOpen={showMeetingModal} onClose={() => setShowMeetingModal(false)} title="Create Meeting">
+        <form onSubmit={handleCreateMeeting}>
+          <div className="crm-form-group">
+            <label>Title *</label>
+            <input
+              type="text"
+              className="crm-form-input"
+              value={meetingData.title}
+              onChange={(e) => setMeetingData({ ...meetingData, title: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-row">
+            <div className="crm-form-group">
+              <label>From *</label>
+              <input
+                type="datetime-local"
+                className="crm-form-input"
+                value={meetingData.from}
+                onChange={(e) => setMeetingData({ ...meetingData, from: e.target.value })}
+                required
+              />
+            </div>
+            <div className="crm-form-group">
+              <label>To *</label>
+              <input
+                type="datetime-local"
+                className="crm-form-input"
+                value={meetingData.to}
+                onChange={(e) => setMeetingData({ ...meetingData, to: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+          <div className="crm-form-group">
+            <label>Location</label>
+            <input
+              type="text"
+              className="crm-form-input"
+              value={meetingData.location}
+              onChange={(e) => setMeetingData({ ...meetingData, location: e.target.value })}
+            />
+          </div>
+          <div className="crm-form-group">
+            <label>Meeting Type</label>
+            <select
+              className="crm-form-select"
+              value={meetingData.meetingType}
+              onChange={(e) => setMeetingData({ ...meetingData, meetingType: e.target.value })}
+            >
+              <option value="Online">Online</option>
+              <option value="In-Person">In-Person</option>
+              <option value="Phone Call">Phone Call</option>
+            </select>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setShowMeetingModal(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="crm-btn crm-btn-primary">Create Meeting</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Call Modal */}
+      <Modal isOpen={showCallModal} onClose={() => setShowCallModal(false)} title="Log Call">
+        <form onSubmit={handleCreateCall}>
+          <div className="crm-form-group">
+            <label>Subject *</label>
+            <input
+              type="text"
+              className="crm-form-input"
+              value={callData.subject}
+              onChange={(e) => setCallData({ ...callData, subject: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-row">
+            <div className="crm-form-group">
+              <label>Call Time *</label>
+              <input
+                type="datetime-local"
+                className="crm-form-input"
+                value={callData.callStartTime}
+                onChange={(e) => setCallData({ ...callData, callStartTime: e.target.value })}
+                required
+              />
+            </div>
+            <div className="crm-form-group">
+              <label>Duration (minutes)</label>
+              <input
+                type="number"
+                className="crm-form-input"
+                value={callData.callDuration}
+                onChange={(e) => setCallData({ ...callData, callDuration: e.target.value })}
+                min="0"
+              />
+            </div>
+          </div>
+          <div className="crm-form-group">
+            <label>Call Type</label>
+            <select
+              className="crm-form-select"
+              value={callData.callType}
+              onChange={(e) => setCallData({ ...callData, callType: e.target.value })}
+            >
+              <option value="Outbound">Outbound</option>
+              <option value="Inbound">Inbound</option>
+              <option value="Missed">Missed</option>
+            </select>
+          </div>
+          <div className="crm-form-group">
+            <label>Call Result</label>
+            <select
+              className="crm-form-select"
+              value={callData.callResult}
+              onChange={(e) => setCallData({ ...callData, callResult: e.target.value })}
+            >
+              <option value="Interested">Interested</option>
+              <option value="Not Interested">Not Interested</option>
+              <option value="No Answer">No Answer</option>
+              <option value="Call Back Later">Call Back Later</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+          <div className="crm-form-group">
+            <label>Description</label>
+            <textarea
+              className="crm-form-textarea"
+              rows="3"
+              value={callData.description}
+              onChange={(e) => setCallData({ ...callData, description: e.target.value })}
+            />
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setShowCallModal(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="crm-btn crm-btn-primary">Log Call</button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Note Modal */}
       <Modal isOpen={showNoteModal} onClose={() => setShowNoteModal(false)} title="Create Note">
         <form onSubmit={handleCreateNote}>
@@ -826,17 +1148,14 @@ const LeadDetail = () => {
       {/* Edit Modal */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setError('');
-        }}
+        onClose={() => setShowEditModal(false)}
         title="Edit Lead"
         size="large"
       >
         <form onSubmit={handleUpdateLead}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div className="crm-form-group">
-              <label className="crm-form-label">First Name *</label>
+              <label>First Name *</label>
               <input
                 type="text"
                 name="firstName"
@@ -846,9 +1165,8 @@ const LeadDetail = () => {
                 required
               />
             </div>
-
             <div className="crm-form-group">
-              <label className="crm-form-label">Last Name *</label>
+              <label>Last Name *</label>
               <input
                 type="text"
                 name="lastName"
@@ -858,9 +1176,8 @@ const LeadDetail = () => {
                 required
               />
             </div>
-
             <div className="crm-form-group">
-              <label className="crm-form-label">Email *</label>
+              <label>Email *</label>
               <input
                 type="email"
                 name="email"
@@ -870,9 +1187,8 @@ const LeadDetail = () => {
                 required
               />
             </div>
-
             <div className="crm-form-group">
-              <label className="crm-form-label">Phone</label>
+              <label>Phone</label>
               <input
                 type="tel"
                 name="phone"
@@ -881,79 +1197,17 @@ const LeadDetail = () => {
                 onChange={handleChange}
               />
             </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Company</label>
-              <input
-                type="text"
-                name="company"
-                className="crm-form-input"
-                value={formData.company}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Job Title</label>
-              <input
-                type="text"
-                name="jobTitle"
-                className="crm-form-input"
-                value={formData.jobTitle}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Lead Status</label>
-              <select
-                name="leadStatus"
-                className="crm-form-select"
-                value={formData.leadStatus}
-                onChange={handleChange}
-              >
-                <option value="New">New</option>
-                <option value="Contacted">Contacted</option>
-                <option value="Qualified">Qualified</option>
-                <option value="Unqualified">Unqualified</option>
-                <option value="Lost">Lost</option>
-              </select>
-            </div>
-
-            <div className="crm-form-group">
-              <label className="crm-form-label">Rating</label>
-              <select
-                name="rating"
-                className="crm-form-select"
-                value={formData.rating}
-                onChange={handleChange}
-              >
-                <option value="Hot">Hot</option>
-                <option value="Warm">Warm</option>
-                <option value="Cold">Cold</option>
-              </select>
-            </div>
           </div>
-
           <div className="modal-footer">
-            <button
-              type="button"
-              className="crm-btn crm-btn-secondary"
-              onClick={() => {
-                setShowEditModal(false);
-                setError('');
-              }}
-            >
+            <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setShowEditModal(false)}>
               Cancel
             </button>
-            <button type="submit" className="crm-btn crm-btn-primary">
-              Update Lead
-            </button>
+            <button type="submit" className="crm-btn crm-btn-primary">Update Lead</button>
           </div>
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
@@ -968,28 +1222,18 @@ const LeadDetail = () => {
           <p style={{ fontSize: '14px', color: '#666' }}>
             {lead.company} • {lead.email}
           </p>
-          <p style={{ marginTop: '15px', color: '#E74C3C', fontSize: '14px' }}>
-            This action cannot be undone.
-          </p>
-
           <div className="modal-footer">
-            <button
-              className="crm-btn crm-btn-secondary"
-              onClick={() => setShowDeleteModal(false)}
-            >
+            <button className="crm-btn crm-btn-secondary" onClick={() => setShowDeleteModal(false)}>
               Cancel
             </button>
-            <button
-              className="crm-btn crm-btn-danger"
-              onClick={handleDeleteLead}
-            >
+            <button className="crm-btn crm-btn-danger" onClick={handleDeleteLead}>
               Delete Lead
             </button>
           </div>
         </div>
       </Modal>
 
-      {/* Convert Lead Modal */}
+      {/* Convert Modal */}
       <Modal
         isOpen={showConvertModal}
         onClose={() => setShowConvertModal(false)}
@@ -997,147 +1241,88 @@ const LeadDetail = () => {
         size="large"
       >
         <form onSubmit={handleConvertLead}>
-          {/* Lead Info */}
-          <div className="crm-card" style={{ marginBottom: '20px', background: '#f8f9fa' }}>
-            <div className="crm-card-body">
-              <h4 style={{ marginBottom: '10px' }}>Lead Information</h4>
-              <p><strong>Name:</strong> {lead.firstName} {lead.lastName}</p>
-              <p><strong>Email:</strong> {lead.email}</p>
-              <p><strong>Company:</strong> {lead.company || 'N/A'}</p>
-              <p><strong>Phone:</strong> {lead.phone || 'N/A'}</p>
-            </div>
+          <div style={{ marginBottom: '20px' }}>
+            <p><strong>Name:</strong> {lead.firstName} {lead.lastName}</p>
+            <p><strong>Email:</strong> {lead.email}</p>
           </div>
-
-          {/* Account Creation */}
-          <div className="crm-form-row">
-            <div className="crm-form-group">
-              <label className="crm-checkbox-label">
-                <input
-                  type="checkbox"
-                  name="createAccount"
-                  checked={conversionData.createAccount}
-                  onChange={handleConversionChange}
-                />
-                <span>Create Account</span>
-              </label>
-            </div>
+          <div className="crm-form-group">
+            <label>
+              <input
+                type="checkbox"
+                name="createAccount"
+                checked={conversionData.createAccount}
+                onChange={handleConversionChange}
+              />
+              {' '}Create Account
+            </label>
           </div>
-
           {conversionData.createAccount && (
-            <div className="crm-form-row">
-              <div className="crm-form-group">
-                <label className="crm-label">Account Name *</label>
-                <input
-                  type="text"
-                  name="accountName"
-                  value={conversionData.accountName}
-                  onChange={handleConversionChange}
-                  className="crm-input"
-                  required={conversionData.createAccount}
-                />
-              </div>
+            <div className="crm-form-group">
+              <label>Account Name *</label>
+              <input
+                type="text"
+                name="accountName"
+                className="crm-form-input"
+                value={conversionData.accountName}
+                onChange={handleConversionChange}
+                required
+              />
             </div>
           )}
-
-          {/* Contact Creation */}
-          <div className="crm-form-row">
-            <div className="crm-form-group">
-              <label className="crm-checkbox-label">
-                <input
-                  type="checkbox"
-                  name="createContact"
-                  checked={conversionData.createContact}
-                  onChange={handleConversionChange}
-                />
-                <span>Create Contact</span>
-              </label>
-            </div>
+          <div className="crm-form-group">
+            <label>
+              <input
+                type="checkbox"
+                name="createContact"
+                checked={conversionData.createContact}
+                onChange={handleConversionChange}
+              />
+              {' '}Create Contact
+            </label>
           </div>
-
-          {/* Opportunity Creation */}
-          <div className="crm-form-row">
-            <div className="crm-form-group">
-              <label className="crm-checkbox-label">
-                <input
-                  type="checkbox"
-                  name="createOpportunity"
-                  checked={conversionData.createOpportunity}
-                  onChange={handleConversionChange}
-                  disabled={!conversionData.createAccount}
-                />
-                <span>Create Opportunity</span>
-              </label>
-              {!conversionData.createAccount && (
-                <small className="crm-help-text crm-text-muted">
-                  (Requires account creation)
-                </small>
-              )}
-            </div>
+          <div className="crm-form-group">
+            <label>
+              <input
+                type="checkbox"
+                name="createOpportunity"
+                checked={conversionData.createOpportunity}
+                onChange={handleConversionChange}
+                disabled={!conversionData.createAccount}
+              />
+              {' '}Create Opportunity
+            </label>
           </div>
-
           {conversionData.createOpportunity && conversionData.createAccount && (
             <>
-              <div className="crm-form-row">
-                <div className="crm-form-group">
-                  <label className="crm-label">Opportunity Name *</label>
-                  <input
-                    type="text"
-                    name="opportunityName"
-                    value={conversionData.opportunityName}
-                    onChange={handleConversionChange}
-                    className="crm-input"
-                    required={conversionData.createOpportunity}
-                  />
-                </div>
+              <div className="crm-form-group">
+                <label>Opportunity Name *</label>
+                <input
+                  type="text"
+                  name="opportunityName"
+                  className="crm-form-input"
+                  value={conversionData.opportunityName}
+                  onChange={handleConversionChange}
+                  required
+                />
               </div>
-              <div className="crm-form-row">
-                <div className="crm-form-group">
-                  <label className="crm-label">Amount *</label>
-                  <input
-                    type="number"
-                    name="opportunityAmount"
-                    value={conversionData.opportunityAmount}
-                    onChange={handleConversionChange}
-                    className="crm-input"
-                    min="0"
-                    step="0.01"
-                    required={conversionData.createOpportunity}
-                  />
-                </div>
-                <div className="crm-form-group">
-                  <label className="crm-label">Expected Close Date *</label>
-                  <input
-                    type="date"
-                    name="closeDate"
-                    value={conversionData.closeDate}
-                    onChange={handleConversionChange}
-                    className="crm-input"
-                    required={conversionData.createOpportunity}
-                  />
-                </div>
+              <div className="crm-form-group">
+                <label>Amount *</label>
+                <input
+                  type="number"
+                  name="opportunityAmount"
+                  className="crm-form-input"
+                  value={conversionData.opportunityAmount}
+                  onChange={handleConversionChange}
+                  required
+                />
               </div>
             </>
           )}
-
-          <div className="crm-alert crm-alert-info" style={{ marginTop: '20px' }}>
-            <strong>Note:</strong> The lead will be marked as "Converted" and will no longer appear in the active leads list.
-          </div>
-
           <div className="modal-footer">
-            <button
-              type="button"
-              className="crm-btn crm-btn-secondary"
-              onClick={() => setShowConvertModal(false)}
-            >
+            <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setShowConvertModal(false)}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="crm-btn crm-btn-primary"
-              disabled={!conversionData.createAccount && !conversionData.createContact}
-            >
-              Convert Lead
-            </button>
+            <button type="submit" className="crm-btn crm-btn-primary">Convert Lead</button>
           </div>
         </form>
       </Modal>

@@ -1,211 +1,213 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { opportunityService } from '../services/opportunityService';
 import { useAuth } from '../context/AuthContext';
-import Modal from '../components/common/Modal';
 import '../styles/crm.css';
 
 const Opportunities = () => {
   const navigate = useNavigate();
-  const { user, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [draggedItem, setDraggedItem] = useState(null);
 
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    pages: 0
-  });
-
-  const [filters, setFilters] = useState({
-    search: '',
-    stage: '',
-    type: ''
-  });
-
-  const [formData, setFormData] = useState({
-    opportunityName: '',
-    amount: '',
-    closeDate: '',
-    stage: 'Qualification',
-    probability: '50',
-    type: 'New Business',
-    account: '',
-    description: ''
-  });
+  const stages = [
+    { name: 'Qualification', color: '#3B82F6', percentage: 10 },
+    { name: 'Needs Analysis', color: '#8B5CF6', percentage: 20 },
+    { name: 'Value Proposition', color: '#10B981', percentage: 40 },
+    { name: 'Identify Decision Makers', color: '#F59E0B', percentage: 60 },
+    { name: 'Proposal/Price Quote', color: '#EF4444', percentage: 75 },
+    { name: 'Negotiation/Review', color: '#EC4899', percentage: 90 },
+    { name: 'Closed Won', color: '#059669', percentage: 100 },
+    { name: 'Closed Lost', color: '#DC2626', percentage: 0 }
+  ];
 
   useEffect(() => {
     loadOpportunities();
-  }, [pagination.page, filters]);
+  }, []);
 
   const loadOpportunities = async () => {
     try {
-      setLoading(true);
-      const response = await opportunityService.getOpportunities({
-        page: pagination.page,
-        limit: pagination.limit,
-        ...filters
+        const response = await fetch('http://localhost:4000/api/opportunities?limit=100', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
-
-      if (response?.success) {
-        setOpportunities(response.data.opportunities || []);
-        setPagination(prev => ({
-          ...prev,
-          total: response.data.pagination?.total || 0,
-          pages: response.data.pagination?.pages || 0
-        }));
-      }
+      const data = await response.json();
+      if (data.success) setOpportunities(data.data.opportunities || []);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load opportunities');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const updateOpportunityStage = async (oppId, newStage) => {
     try {
-      await opportunityService.createOpportunity(formData);
-      setSuccess('Opportunity created successfully!');
-      setShowCreateModal(false);
-      resetForm();
-      loadOpportunities();
-      setTimeout(() => setSuccess(''), 3000);
+    await fetch(`http://localhost:4000/api/opportunities/${oppId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ stage: newStage })
+      });
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create opportunity');
+      console.error('Update failed:', err);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      opportunityName: '',
-      amount: '',
-      closeDate: '',
-      stage: 'Qualification',
-      probability: '50',
-      type: 'New Business',
-      account: '',
-      description: ''
-    });
+  const handleDragStart = (e, opp) => {
+    setDraggedItem(opp);
+    e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleFilterChange = (e) => {
-    setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    setPagination(prev => ({ ...prev, page: 1 }));
+  const handleDrop = async (e, targetStage) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.stage === targetStage) {
+      setDraggedItem(null);
+      return;
+    }
+
+    setOpportunities(prev =>
+      prev.map(opp =>
+        opp._id === draggedItem._id ? { ...opp, stage: targetStage } : opp
+      )
+    );
+
+    await updateOpportunityStage(draggedItem._id, targetStage);
+    setDraggedItem(null);
   };
 
-  const canCreate = hasPermission('opportunity_management', 'create');
+  const getOpportunitiesByStage = (stageName) => {
+    return opportunities.filter(opp => opp.stage === stageName);
+  };
+
+  const getTotalByStage = (stageName) => {
+    return getOpportunitiesByStage(stageName).reduce((sum, opp) => sum + (opp.amount || 0), 0);
+  };
 
   return (
-    <DashboardLayout title="Opportunities">
-      {success && <div className="alert-success">{success}</div>}
-      {error && <div className="alert-error">{error}</div>}
+    <DashboardLayout title="Opportunities - Kanban View">
+      {loading ? (
+        <div style={{padding:'40px',textAlign:'center'}}>Loading...</div>
+      ) : (
+        <div style={{display:'flex',gap:'12px',overflowX:'auto',padding:'20px 0',minHeight:'75vh'}}>
+          {stages.map(stage => {
+            const stageOpps = getOpportunitiesByStage(stage.name);
+            const total = getTotalByStage(stage.name);
 
-      <div className="crm-card" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <input
-            type="text"
-            name="search"
-            placeholder="Search opportunities..."
-            className="crm-form-input"
-            value={filters.search}
-            onChange={handleFilterChange}
-          />
-          <select name="stage" className="crm-form-select" value={filters.stage} onChange={handleFilterChange}>
-            <option value="">All Stages</option>
-            <option value="Qualification">Qualification</option>
-            <option value="Needs Analysis">Needs Analysis</option>
-            <option value="Proposal/Price Quote">Proposal/Price Quote</option>
-            <option value="Negotiation/Review">Negotiation/Review</option>
-            <option value="Closed Won">Closed Won</option>
-            <option value="Closed Lost">Closed Lost</option>
-          </select>
-          <button className="crm-btn crm-btn-primary" onClick={() => setShowCreateModal(true)} disabled={!canCreate}>
-            + New Opportunity
-          </button>
+            return (
+              <div
+                key={stage.name}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, stage.name)}
+                style={{
+                  minWidth:'280px',
+                  maxWidth:'280px',
+                  background:'#F9FAFB',
+                  borderRadius:'8px',
+                  padding:'12px',
+                  display:'flex',
+                  flexDirection:'column'
+                }}
+              >
+                <div style={{marginBottom:'12px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
+                    <h3 style={{fontSize:'13px',fontWeight:'600',color:'#111827',margin:0}}>
+                      {stage.name}
+                    </h3>
+                    <span style={{
+                      fontSize:'11px',
+                      fontWeight:'700',
+                      color:'white',
+                      background:stage.color,
+                      padding:'2px 6px',
+                      borderRadius:'10px'
+                    }}>
+                      {stage.percentage}%
+                    </span>
+                  </div>
+
+                  <div style={{fontSize:'12px',color:'#6B7280',marginBottom:'8px'}}>
+                    Rs. {total.toLocaleString()}
+                  </div>
+
+                  <div style={{height:'4px',background:'#E5E7EB',borderRadius:'2px',overflow:'hidden'}}>
+                    <div style={{height:'100%',width:`${stage.percentage}%`,background:stage.color}}></div>
+                  </div>
+                </div>
+
+                <div style={{display:'flex',flexDirection:'column',gap:'8px',flex:1,overflowY:'auto'}}>
+                  {stageOpps.length === 0 ? (
+                    <div style={{
+                      padding:'20px',
+                      textAlign:'center',
+                      color:'#9CA3AF',
+                      fontSize:'12px',
+                      border:'2px dashed #E5E7EB',
+                      borderRadius:'6px',
+                      background:'white'
+                    }}>
+                      No deals
+                    </div>
+                  ) : (
+                    stageOpps.map(opp => (
+                      <div
+                        key={opp._id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, opp)}
+                        style={{
+                          background:'white',
+                          borderRadius:'6px',
+                          padding:'10px',
+                          cursor:'grab',
+                          border:'1px solid #E5E7EB',
+                          transition:'all 0.2s'
+                        }}
+                        onMouseEnter={(e)=>{
+                          e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)';
+                        }}
+                        onMouseLeave={(e)=>{
+                          e.currentTarget.style.boxShadow='none';
+                        }}
+                      >
+                        <h4 style={{fontSize:'13px',fontWeight:'600',marginBottom:'6px',color:'#111827',lineHeight:'1.3'}}>
+                          {opp.opportunityName}
+                        </h4>
+
+                        <p style={{fontSize:'16px',fontWeight:'700',color:'#059669',marginBottom:'8px'}}>
+                          Rs. {opp.amount?.toLocaleString() || '0'}
+                        </p>
+
+                        {opp.account && (
+                          <div style={{fontSize:'11px',color:'#6B7280',marginBottom:'4px'}}>
+                            🏢 {opp.account.accountName}
+                          </div>
+                        )}
+
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:'6px',borderTop:'1px solid #F3F4F6'}}>
+                          <span style={{fontSize:'10px',color:'#9CA3AF'}}>
+                            {new Date(opp.closeDate).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}
+                          </span>
+                          {opp.owner && (
+                            <span style={{fontSize:'10px',color:'white',background:'#6B7280',padding:'2px 5px',borderRadius:'8px'}}>
+                              {opp.owner.firstName?.charAt(0)}{opp.owner.lastName?.charAt(0)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
-
-      <div className="crm-card">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <div className="spinner"></div>
-          </div>
-        ) : opportunities.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>No opportunities found</div>
-        ) : (
-          <table className="crm-table">
-            <thead>
-              <tr>
-                <th>Opportunity Name</th>
-                <th>Account</th>
-                <th>Amount</th>
-                <th>Close Date</th>
-                <th>Stage</th>
-                <th>Probability</th>
-                <th>Owner</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {opportunities.map(opp => (
-                <tr key={opp._id} onClick={() => navigate(`/opportunities/${opp._id}`)} style={{ cursor: 'pointer' }}>
-                  <td>{opp.opportunityName}</td>
-                  <td>{opp.account?.accountName || '-'}</td>
-                  <td>₹{opp.amount?.toLocaleString() || 0}</td>
-                  <td>{new Date(opp.closeDate).toLocaleDateString()}</td>
-                  <td><span className="status-badge">{opp.stage}</span></td>
-                  <td>{opp.probability}%</td>
-                  <td>{opp.owner?.firstName} {opp.owner?.lastName}</td>
-                  <td onClick={e => e.stopPropagation()}>
-                    <button className="crm-btn crm-btn-sm crm-btn-primary" onClick={() => navigate(`/opportunities/${opp._id}`)}>
-                      View
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create Opportunity">
-        <form onSubmit={handleCreate}>
-          <div className="crm-form-group">
-            <label>Opportunity Name *</label>
-            <input type="text" name="opportunityName" className="crm-form-input" value={formData.opportunityName} onChange={handleChange} required />
-          </div>
-          <div className="crm-form-group">
-            <label>Amount</label>
-            <input type="number" name="amount" className="crm-form-input" value={formData.amount} onChange={handleChange} />
-          </div>
-          <div className="crm-form-group">
-            <label>Close Date *</label>
-            <input type="date" name="closeDate" className="crm-form-input" value={formData.closeDate} onChange={handleChange} required />
-          </div>
-          <div className="crm-form-group">
-            <label>Stage</label>
-            <select name="stage" className="crm-form-select" value={formData.stage} onChange={handleChange}>
-              <option value="Qualification">Qualification</option>
-              <option value="Needs Analysis">Needs Analysis</option>
-              <option value="Proposal/Price Quote">Proposal/Price Quote</option>
-            </select>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="crm-btn crm-btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-            <button type="submit" className="crm-btn crm-btn-primary">Create</button>
-          </div>
-        </form>
-      </Modal>
+      )}
     </DashboardLayout>
   );
 };

@@ -12,13 +12,15 @@ import Dashboard from './pages/Dashboard';
 import TenantDashboard from './pages/TenantDashboard';
 import SaasDashboard from './pages/SaasDashboard';
 import Tasks from './pages/Tasks';
-
+import Meetings from './pages/Meetings';
+import Calls from './pages/Calls';
 // CRM pages
 import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
 import Accounts from './pages/Accounts';
 import Contacts from './pages/Contacts';
 import Opportunities from './pages/Opportunities';
+import MeetingDetail from './pages/MeetingDetail';
 
 // User management (Settings)
 import Users from './pages/Users';
@@ -29,6 +31,10 @@ import Groups from './pages/Groups';
 import Tenants from './pages/Tenants';
 import Subscriptions from './pages/Subscriptions';
 import Billings from './pages/Billings';
+
+
+import AccountDetail from './pages/AccountDetail';
+import ContactDetail from './pages/ContactDetail';
 
 // Common components
 import Loading from './components/common/Loading';
@@ -157,6 +163,14 @@ function AppRoutes() {
           <Tenants />
         </ProtectedRoute>
       } />
+
+      <Route path="/accounts/:id" element={<ProtectedRoute><AccountDetail /></ProtectedRoute>} />
+<Route path="/contacts/:id" element={<ProtectedRoute><ContactDetail /></ProtectedRoute>} />
+
+<Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+<Route path="/calls" element={<ProtectedRoute><Calls /></ProtectedRoute>} />
+<Route path="/meetings/:id" element={<ProtectedRoute><MeetingDetail /></ProtectedRoute>} />
+
       <Route path="/saas/subscriptions" element={
         <ProtectedRoute requireSaas>
           <Subscriptions />

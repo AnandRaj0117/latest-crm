@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { accountService } from '../services/accountService';
 import Modal from '../components/common/Modal';
@@ -6,6 +7,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import '../styles/crm.css';
 
 const Accounts = () => {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ const Accounts = () => {
 
   useEffect(() => {
     loadAccounts();
-  }, [pagination.page, filters]);
+  }, [pagination.page, filters.search, filters.accountType, filters.industry]);
 
   const loadAccounts = async () => {
     try {
@@ -138,7 +140,8 @@ const Accounts = () => {
     setShowCreateModal(true);
   };
 
-  const openEditModal = (account) => {
+  const openEditModal = (e, account) => {
+    e.stopPropagation();
     setSelectedAccount(account);
     setFormData({
       accountName: account.accountName || '',
@@ -164,7 +167,8 @@ const Accounts = () => {
     setShowEditModal(true);
   };
 
-  const openDeleteModal = (account) => {
+  const openDeleteModal = (e, account) => {
+    e.stopPropagation();
     setSelectedAccount(account);
     setShowDeleteModal(true);
   };
@@ -304,9 +308,13 @@ const Accounts = () => {
                 </thead>
                 <tbody>
                   {accounts.map((account) => (
-                    <tr key={account._id}>
+                    <tr 
+                      key={account._id} 
+                      onClick={() => navigate(`/accounts/${account._id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <td>
-                        <div style={{ fontWeight: '600' }}>
+                        <div style={{ fontWeight: '600', color: '#3B82F6' }}>
                           {account.accountName}
                         </div>
                         {account.website && (
@@ -326,12 +334,12 @@ const Accounts = () => {
                       <td>
                         {account.owner ? `${account.owner.firstName || ''} ${account.owner.lastName || ''}` : '-'}
                       </td>
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {canUpdateAccount && (
                             <button
                               className="crm-btn crm-btn-sm crm-btn-secondary"
-                              onClick={() => openEditModal(account)}
+                              onClick={(e) => openEditModal(e, account)}
                             >
                               Edit
                             </button>
@@ -339,7 +347,7 @@ const Accounts = () => {
                           {canDeleteAccount && (
                             <button
                               className="crm-btn crm-btn-sm crm-btn-danger"
-                              onClick={() => openDeleteModal(account)}
+                              onClick={(e) => openDeleteModal(e, account)}
                             >
                               Delete
                             </button>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { contactService } from '../services/contactService';
 import { accountService } from '../services/accountService';
@@ -7,6 +8,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import '../styles/crm.css';
 
 const Contacts = () => {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -14,76 +16,40 @@ const Contacts = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Pagination
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    pages: 0
-  });
-
-  // Filters
-  const [filters, setFilters] = useState({
-    search: '',
-    account: '',
-    title: ''
-  });
-
-  // Modals
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
+  const [filters, setFilters] = useState({ search: '', account: '', title: '' });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedContact, setSelectedContact] = useState(null);
 
-  // Form data
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    mobile: '',
-    account: '',
-    title: '',
-    department: '',
-    isPrimary: false,
-    doNotCall: false,
-    emailOptOut: false,
-    mailingStreet: '',
-    mailingCity: '',
-    mailingState: '',
-    mailingCountry: '',
-    mailingZipCode: '',
-    description: ''
+    firstName: '', lastName: '', email: '', phone: '', mobile: '', account: '', title: '', department: '',
+    isPrimary: false, doNotCall: false, emailOptOut: false, mailingStreet: '', mailingCity: '', mailingState: '',
+    mailingCountry: '', mailingZipCode: '', description: ''
   });
 
   useEffect(() => {
     loadContacts();
     loadAccounts();
-  }, [pagination.page, filters]);
+  }, [pagination.page, filters.search, filters.account, filters.title]);
 
   const loadContacts = async () => {
     try {
       setLoading(true);
       setError('');
       const response = await contactService.getContacts({
-        page: pagination.page,
-        limit: pagination.limit,
-        ...filters
+        page: pagination.page, limit: pagination.limit, ...filters
       });
-
       if (response.success && response.data) {
         setContacts(response.data.contacts || []);
         setPagination(prev => ({
-          ...prev,
-          total: response.data.pagination?.total || 0,
-          pages: response.data.pagination?.pages || 0
+          ...prev, total: response.data.pagination?.total || 0, pages: response.data.pagination?.pages || 0
         }));
-      } else {
-        setError(response.message || 'Failed to load contacts');
       }
     } catch (err) {
       console.error('Load contacts error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to load contacts');
+      setError(err.response?.data?.message || 'Failed to load contacts');
     } finally {
       setLoading(false);
     }
@@ -92,9 +58,7 @@ const Contacts = () => {
   const loadAccounts = async () => {
     try {
       const response = await accountService.getAccounts({ limit: 100 });
-      if (response.success && response.data) {
-        setAccounts(response.data.accounts || []);
-      }
+      if (response.success && response.data) setAccounts(response.data.accounts || []);
     } catch (err) {
       console.error('Load accounts error:', err);
     }
@@ -150,70 +114,42 @@ const Contacts = () => {
     setShowCreateModal(true);
   };
 
-  const openEditModal = (contact) => {
+  const openEditModal = (e, contact) => {
+    e.stopPropagation();
     setSelectedContact(contact);
     setFormData({
-      firstName: contact.firstName || '',
-      lastName: contact.lastName || '',
-      email: contact.email || '',
-      phone: contact.phone || '',
-      mobile: contact.mobile || '',
-      account: contact.account?._id || '',
-      title: contact.title || '',
-      department: contact.department || '',
-      isPrimary: contact.isPrimary || false,
-      doNotCall: contact.doNotCall || false,
-      emailOptOut: contact.emailOptOut || false,
-      mailingStreet: contact.mailingAddress?.street || '',
-      mailingCity: contact.mailingAddress?.city || '',
-      mailingState: contact.mailingAddress?.state || '',
-      mailingCountry: contact.mailingAddress?.country || '',
-      mailingZipCode: contact.mailingAddress?.zipCode || '',
-      description: contact.description || ''
+      firstName: contact.firstName || '', lastName: contact.lastName || '', email: contact.email || '',
+      phone: contact.phone || '', mobile: contact.mobile || '', account: contact.account?._id || '',
+      title: contact.title || '', department: contact.department || '', isPrimary: contact.isPrimary || false,
+      doNotCall: contact.doNotCall || false, emailOptOut: contact.emailOptOut || false,
+      mailingStreet: contact.mailingAddress?.street || '', mailingCity: contact.mailingAddress?.city || '',
+      mailingState: contact.mailingAddress?.state || '', mailingCountry: contact.mailingAddress?.country || '',
+      mailingZipCode: contact.mailingAddress?.zipCode || '', description: contact.description || ''
     });
     setShowEditModal(true);
   };
 
-  const openDeleteModal = (contact) => {
+  const openDeleteModal = (e, contact) => {
+    e.stopPropagation();
     setSelectedContact(contact);
     setShowDeleteModal(true);
   };
 
   const resetForm = () => {
     setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      mobile: '',
-      account: '',
-      title: '',
-      department: '',
-      isPrimary: false,
-      doNotCall: false,
-      emailOptOut: false,
-      mailingStreet: '',
-      mailingCity: '',
-      mailingState: '',
-      mailingCountry: '',
-      mailingZipCode: '',
-      description: ''
+      firstName: '', lastName: '', email: '', phone: '', mobile: '', account: '', title: '', department: '',
+      isPrimary: false, doNotCall: false, emailOptOut: false, mailingStreet: '', mailingCity: '', mailingState: '',
+      mailingCountry: '', mailingZipCode: '', description: ''
     });
   };
 
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
+    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
   const handleFilterChange = (e) => {
-    setFilters({
-      ...filters,
-      [e.target.name]: e.target.value
-    });
+    setFilters({ ...filters, [e.target.name]: e.target.value });
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -222,77 +158,37 @@ const Contacts = () => {
   const canDeleteContact = hasPermission('contact_management', 'delete');
 
   const actionButton = canCreateContact ? (
-    <button className="crm-btn crm-btn-primary" onClick={openCreateModal}>
-      + New Contact
-    </button>
+    <button className="crm-btn crm-btn-primary" onClick={openCreateModal}>+ New Contact</button>
   ) : null;
 
   return (
     <DashboardLayout title="Contacts" actionButton={actionButton}>
-      {success && (
-        <div style={{ padding: '16px', background: '#DCFCE7', color: '#166534', borderRadius: '8px', marginBottom: '20px' }}>
-          {success}
-        </div>
-      )}
-      {error && (
-        <div style={{ padding: '16px', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px', marginBottom: '20px' }}>
-          {error}
-        </div>
-      )}
+      {success && <div style={{padding:'16px',background:'#DCFCE7',color:'#166534',borderRadius:'8px',marginBottom:'20px'}}>{success}</div>}
+      {error && <div style={{padding:'16px',background:'#FEE2E2',color:'#991B1B',borderRadius:'8px',marginBottom:'20px'}}>{error}</div>}
 
-      {/* Filters */}
-      <div className="crm-card" style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-          <input
-            type="text"
-            name="search"
-            placeholder="Search contacts..."
-            className="crm-form-input"
-            value={filters.search}
-            onChange={handleFilterChange}
-          />
-          <select
-            name="account"
-            className="crm-form-select"
-            value={filters.account}
-            onChange={handleFilterChange}
-          >
+      <div className="crm-card" style={{marginBottom:'20px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'16px'}}>
+          <input type="text" name="search" placeholder="Search contacts..." className="crm-form-input" value={filters.search} onChange={handleFilterChange} />
+          <select name="account" className="crm-form-select" value={filters.account} onChange={handleFilterChange}>
             <option value="">All Accounts</option>
-            {accounts.map(account => (
-              <option key={account._id} value={account._id}>
-                {account.accountName}
-              </option>
-            ))}
+            {accounts.map(account => <option key={account._id} value={account._id}>{account.accountName}</option>)}
           </select>
-          <input
-            type="text"
-            name="title"
-            placeholder="Filter by title..."
-            className="crm-form-input"
-            value={filters.title}
-            onChange={handleFilterChange}
-          />
+          <input type="text" name="title" placeholder="Filter by title..." className="crm-form-input" value={filters.title} onChange={handleFilterChange} />
         </div>
       </div>
 
-      {/* Contacts Table */}
       <div className="crm-card">
         <div className="crm-card-header">
           <h2 className="crm-card-title">All Contacts ({pagination.total})</h2>
         </div>
 
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <div className="spinner" style={{ margin: '0 auto' }}></div>
-            <p style={{ marginTop: '10px' }}>Loading contacts...</p>
-          </div>
+          <div style={{padding:'40px',textAlign:'center'}}>Loading...</div>
         ) : contacts.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
-            <p>No contacts found. Create your first contact!</p>
-          </div>
+          <div style={{padding:'40px',textAlign:'center',color:'#666'}}>No contacts found</div>
         ) : (
           <>
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{overflowX:'auto'}}>
               <table className="crm-table">
                 <thead>
                   <tr>
@@ -307,52 +203,30 @@ const Contacts = () => {
                 </thead>
                 <tbody>
                   {contacts.map((contact) => (
-                    <tr key={contact._id}>
+                    <tr key={contact._id} onClick={()=>navigate(`/contacts/${contact._id}`)} style={{cursor:'pointer'}}>
                       <td>
-                        <div style={{ fontWeight: '600' }}>
-                          {contact.firstName} {contact.lastName}
-                        </div>
-                        {contact.department && (
-                          <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                            {contact.department}
-                          </div>
-                        )}
+                        <div style={{fontWeight:'600',color:'#3B82F6'}}>{contact.firstName} {contact.lastName}</div>
+                        {contact.department && <div style={{fontSize:'12px',color:'#666'}}>{contact.department}</div>}
                       </td>
                       <td>
                         {contact.account ? (
                           <div>
-                            <div style={{ fontWeight: '500' }}>{contact.account.accountName}</div>
-                            <div style={{ fontSize: '11px', color: '#666' }}>
-                              {contact.account.accountNumber}
-                            </div>
+                            <div style={{fontWeight:'500'}}>{contact.account.accountName}</div>
+                            <div style={{fontSize:'11px',color:'#666'}}>{contact.account.accountNumber}</div>
                           </div>
                         ) : '-'}
                       </td>
                       <td>{contact.title || '-'}</td>
                       <td>{contact.email}</td>
                       <td>{contact.phone || contact.mobile || '-'}</td>
-                      <td>
-                        {contact.isPrimary && (
-                          <span className="status-badge hot">Primary</span>
-                        )}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                      <td>{contact.isPrimary && <span className="status-badge hot">Primary</span>}</td>
+                      <td onClick={(e)=>e.stopPropagation()}>
+                        <div style={{display:'flex',gap:'8px'}}>
                           {canUpdateContact && (
-                            <button
-                              className="crm-btn crm-btn-sm crm-btn-secondary"
-                              onClick={() => openEditModal(contact)}
-                            >
-                              Edit
-                            </button>
+                            <button className="crm-btn crm-btn-sm crm-btn-secondary" onClick={(e)=>openEditModal(e, contact)}>Edit</button>
                           )}
                           {canDeleteContact && (
-                            <button
-                              className="crm-btn crm-btn-sm crm-btn-danger"
-                              onClick={() => openDeleteModal(contact)}
-                            >
-                              Delete
-                            </button>
+                            <button className="crm-btn crm-btn-sm crm-btn-danger" onClick={(e)=>openDeleteModal(e, contact)}>Delete</button>
                           )}
                         </div>
                       </td>
@@ -362,352 +236,89 @@ const Contacts = () => {
               </table>
             </div>
 
-            {/* Pagination */}
             {pagination.pages > 1 && (
               <div className="pagination">
-                <button
-                  className="crm-btn crm-btn-outline"
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                  disabled={pagination.page === 1}
-                >
-                  Previous
-                </button>
-                <span className="pagination-info">
-                  Page {pagination.page} of {pagination.pages}
-                </span>
-                <button
-                  className="crm-btn crm-btn-outline"
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                  disabled={pagination.page === pagination.pages}
-                >
-                  Next
-                </button>
+                <button className="crm-btn crm-btn-outline" onClick={()=>setPagination(prev=>({...prev,page:prev.page-1}))} disabled={pagination.page===1}>Previous</button>
+                <span className="pagination-info">Page {pagination.page} of {pagination.pages}</span>
+                <button className="crm-btn crm-btn-outline" onClick={()=>setPagination(prev=>({...prev,page:prev.page+1}))} disabled={pagination.page===pagination.pages}>Next</button>
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Create Contact Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          resetForm();
-          setError('');
-        }}
-        title="Create New Contact"
-        size="large"
-      >
+      <Modal isOpen={showCreateModal} onClose={()=>{setShowCreateModal(false);resetForm();setError('');}} title="Create New Contact" size="large">
         <form onSubmit={handleCreateContact}>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">First Name *</label>
-              <input
-                type="text"
-                name="firstName"
-                className="crm-form-input"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-              />
+              <label>First Name *</label>
+              <input type="text" name="firstName" className="crm-form-input" value={formData.firstName} onChange={handleChange} required />
             </div>
             <div className="form-group">
-              <label className="form-label">Last Name *</label>
-              <input
-                type="text"
-                name="lastName"
-                className="crm-form-input"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-              />
+              <label>Last Name *</label>
+              <input type="text" name="lastName" className="crm-form-input" value={formData.lastName} onChange={handleChange} required />
             </div>
           </div>
-
           <div className="form-group">
-            <label className="form-label">Account *</label>
-            <select
-              name="account"
-              className="crm-form-select"
-              value={formData.account}
-              onChange={handleChange}
-              required
-            >
+            <label>Account *</label>
+            <select name="account" className="crm-form-select" value={formData.account} onChange={handleChange} required>
               <option value="">Select Account</option>
-              {accounts.map(account => (
-                <option key={account._id} value={account._id}>
-                  {account.accountName}
-                </option>
-              ))}
+              {accounts.map(account=><option key={account._id} value={account._id}>{account.accountName}</option>)}
             </select>
           </div>
-
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Email *</label>
-              <input
-                type="email"
-                name="email"
-                className="crm-form-input"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
+              <label>Email *</label>
+              <input type="email" name="email" className="crm-form-input" value={formData.email} onChange={handleChange} required />
             </div>
             <div className="form-group">
-              <label className="form-label">Phone</label>
-              <input
-                type="tel"
-                name="phone"
-                className="crm-form-input"
-                value={formData.phone}
-                onChange={handleChange}
-              />
+              <label>Phone</label>
+              <input type="tel" name="phone" className="crm-form-input" value={formData.phone} onChange={handleChange} />
             </div>
           </div>
-
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">Mobile</label>
-              <input
-                type="tel"
-                name="mobile"
-                className="crm-form-input"
-                value={formData.mobile}
-                onChange={handleChange}
-              />
+              <label>Mobile</label>
+              <input type="tel" name="mobile" className="crm-form-input" value={formData.mobile} onChange={handleChange} />
             </div>
             <div className="form-group">
-              <label className="form-label">Title</label>
-              <input
-                type="text"
-                name="title"
-                className="crm-form-input"
-                value={formData.title}
-                onChange={handleChange}
-              />
+              <label>Title</label>
+              <input type="text" name="title" className="crm-form-input" value={formData.title} onChange={handleChange} />
             </div>
           </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Department</label>
-              <input
-                type="text"
-                name="department"
-                className="crm-form-input"
-                value={formData.department}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  name="isPrimary"
-                  checked={formData.isPrimary}
-                  onChange={handleChange}
-                />
-                Primary Contact
-              </label>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Description</label>
-            <textarea
-              name="description"
-              className="crm-form-textarea"
-              rows="3"
-              value={formData.description}
-              onChange={handleChange}
-            />
-          </div>
-
           <div className="modal-footer">
-            <button
-              type="button"
-              className="crm-btn crm-btn-outline"
-              onClick={() => {
-                setShowCreateModal(false);
-                resetForm();
-                setError('');
-              }}
-            >
-              Cancel
-            </button>
-            <button type="submit" className="crm-btn crm-btn-primary">
-              Create Contact
-            </button>
+            <button type="button" className="crm-btn crm-btn-outline" onClick={()=>setShowCreateModal(false)}>Cancel</button>
+            <button type="submit" className="crm-btn crm-btn-primary">Create Contact</button>
           </div>
         </form>
       </Modal>
 
-      {/* Edit Contact Modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedContact(null);
-          resetForm();
-          setError('');
-        }}
-        title="Edit Contact"
-        size="large"
-      >
+      <Modal isOpen={showEditModal} onClose={()=>{setShowEditModal(false);setSelectedContact(null);resetForm();}} title="Edit Contact" size="large">
         <form onSubmit={handleUpdateContact}>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">First Name *</label>
-              <input
-                type="text"
-                name="firstName"
-                className="crm-form-input"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-              />
+              <label>First Name *</label>
+              <input type="text" name="firstName" className="crm-form-input" value={formData.firstName} onChange={handleChange} required />
             </div>
             <div className="form-group">
-              <label className="form-label">Last Name *</label>
-              <input
-                type="text"
-                name="lastName"
-                className="crm-form-input"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-              />
+              <label>Last Name *</label>
+              <input type="text" name="lastName" className="crm-form-input" value={formData.lastName} onChange={handleChange} required />
             </div>
           </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Email *</label>
-              <input
-                type="email"
-                name="email"
-                className="crm-form-input"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Phone</label>
-              <input
-                type="tel"
-                name="phone"
-                className="crm-form-input"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Title</label>
-              <input
-                type="text"
-                name="title"
-                className="crm-form-input"
-                value={formData.title}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Department</label>
-              <input
-                type="text"
-                name="department"
-                className="crm-form-input"
-                value={formData.department}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                name="isPrimary"
-                checked={formData.isPrimary}
-                onChange={handleChange}
-              />
-              Primary Contact
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Description</label>
-            <textarea
-              name="description"
-              className="crm-form-textarea"
-              rows="3"
-              value={formData.description}
-              onChange={handleChange}
-            />
-          </div>
-
           <div className="modal-footer">
-            <button
-              type="button"
-              className="crm-btn crm-btn-outline"
-              onClick={() => {
-                setShowEditModal(false);
-                setSelectedContact(null);
-                resetForm();
-                setError('');
-              }}
-            >
-              Cancel
-            </button>
-            <button type="submit" className="crm-btn crm-btn-primary">
-              Update Contact
-            </button>
+            <button type="button" className="crm-btn crm-btn-outline" onClick={()=>setShowEditModal(false)}>Cancel</button>
+            <button type="submit" className="crm-btn crm-btn-primary">Update Contact</button>
           </div>
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => {
-          setShowDeleteModal(false);
-          setSelectedContact(null);
-        }}
-        title="Delete Contact"
-        size="small"
-      >
+      <Modal isOpen={showDeleteModal} onClose={()=>{setShowDeleteModal(false);setSelectedContact(null);}} title="Delete Contact" size="small">
         <div>
-          <p>Are you sure you want to delete this contact?</p>
-          <p style={{ marginTop: '10px' }}>
-            <strong>{selectedContact?.firstName} {selectedContact?.lastName}</strong><br />
-            <span style={{ color: '#666' }}>{selectedContact?.email}</span>
-          </p>
-          <p style={{ marginTop: '15px', color: 'var(--error-color)', fontSize: '14px' }}>
-            This action cannot be undone.
-          </p>
-
+          <p>Delete this contact?</p>
+          <p style={{fontWeight:'600',marginTop:'10px'}}>{selectedContact?.firstName} {selectedContact?.lastName}</p>
           <div className="modal-footer">
-            <button
-              className="crm-btn crm-btn-outline"
-              onClick={() => {
-                setShowDeleteModal(false);
-                setSelectedContact(null);
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              className="crm-btn crm-btn-danger"
-              onClick={handleDeleteContact}
-            >
-              Delete Contact
-            </button>
+            <button className="crm-btn crm-btn-outline" onClick={()=>setShowDeleteModal(false)}>Cancel</button>
+            <button className="crm-btn crm-btn-danger" onClick={handleDeleteContact}>Delete</button>
           </div>
         </div>
       </Modal>
