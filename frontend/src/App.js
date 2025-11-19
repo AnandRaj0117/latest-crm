@@ -3,9 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
+
 // Auth components
 import Login from './pages/Login';
 import Register from './pages/Register';
+import LandingPage from './pages/LandingPage';
 
 // Dashboard components
 import Dashboard from './pages/Dashboard';
@@ -14,6 +16,7 @@ import SaasDashboard from './pages/SaasDashboard';
 import Tasks from './pages/Tasks';
 import Meetings from './pages/Meetings';
 import Calls from './pages/Calls';
+
 // CRM pages
 import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
@@ -36,6 +39,14 @@ import Tenants from './pages/Tenants';
 import Subscriptions from './pages/Subscriptions';
 import Billings from './pages/Billings';
 
+// ============================================
+// 🚀 RESELLER PAGES - NEW
+// ============================================
+import ResellerRegister from './pages/ResellerRegister';
+import ResellerLogin from './pages/ResellerLogin';
+import ResellerDashboard from './pages/ResellerDashboard';
+import ResellerManagement from './pages/ResellerManagement';
+// ============================================
 
 import AccountDetail from './pages/AccountDetail';
 import ContactDetail from './pages/ContactDetail';
@@ -96,6 +107,19 @@ function AppRoutes() {
           <Register />
         </PublicRoute>
       } />
+
+      {/* ============================================ */}
+      {/* 🚀 RESELLER PUBLIC ROUTES - NEW */}
+      {/* ============================================ */}
+      <Route path="/reseller/register" element={<ResellerRegister />} />
+      <Route path="/reseller/login" element={<ResellerLogin />} />
+      {/* ============================================ */}
+
+      {/* ============================================ */}
+      {/* 🚀 RESELLER PROTECTED ROUTES - NEW */}
+      {/* ============================================ */}
+      <Route path="/reseller/dashboard" element={<ResellerDashboard />} />
+      {/* ============================================ */}
 
       {/* Protected routes */}
       <Route path="/dashboard" element={
@@ -168,17 +192,26 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      {/* ============================================ */}
+      {/* 🚀 RESELLER MANAGEMENT (SAAS ADMIN) - NEW */}
+      {/* ============================================ */}
+      <Route path="/saas/resellers" element={
+        <ProtectedRoute requireSaas>
+          <ResellerManagement />
+        </ProtectedRoute>
+      } />
+      {/* ============================================ */}
+
       <Route path="/accounts/:id" element={<ProtectedRoute><AccountDetail /></ProtectedRoute>} />
-<Route path="/contacts/:id" element={<ProtectedRoute><ContactDetail /></ProtectedRoute>} />
+      <Route path="/contacts/:id" element={<ProtectedRoute><ContactDetail /></ProtectedRoute>} />
 
-<Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
-<Route path="/calls" element={<ProtectedRoute><Calls /></ProtectedRoute>} />
-<Route path="/meetings/:id" element={<ProtectedRoute><MeetingDetail /></ProtectedRoute>} />
+      <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+      <Route path="/calls" element={<ProtectedRoute><Calls /></ProtectedRoute>} />
+      <Route path="/meetings/:id" element={<ProtectedRoute><MeetingDetail /></ProtectedRoute>} />
 
-
-<Route path="/forgot-password" element={<ForgotPassword />} />
-<Route path="/reset-password/:token" element={<ResetPassword />} />
-<Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
 
       <Route path="/saas/subscriptions" element={
         <ProtectedRoute requireSaas>
@@ -187,10 +220,10 @@ function AppRoutes() {
       } />
 
       <Route path="/tasks" element={
-  <ProtectedRoute>
-    <Tasks />
-  </ProtectedRoute>
-} />
+        <ProtectedRoute>
+          <Tasks />
+        </ProtectedRoute>
+      } />
 
       <Route path="/saas/billings" element={
         <ProtectedRoute requireSaas>
@@ -207,7 +240,7 @@ function AppRoutes() {
               : '/dashboard'
           } replace />
         ) : (
-          <Navigate to="/login" replace />
+          <LandingPage />
         )
       } />
 

@@ -5,6 +5,8 @@
  * @param {String} action - Action type (create, read, update, delete, manage)
  * @returns {Boolean}
  */
+
+
 const hasPermission = (user, feature, action) => {
   // SAAS_OWNER has all permissions
   if (user.userType === 'SAAS_OWNER') {

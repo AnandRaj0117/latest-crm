@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Tenant = require('../models/Tenant');
 const Subscription = require('../models/Subscription');
+const Reseller = require('../models/Reseller');
 const { generateToken } = require('../utils/jwt');
 const { successResponse, errorResponse } = require('../utils/response');
 const { logActivity } = require('../middleware/activityLogger');
@@ -97,7 +98,8 @@ const registerTenant = async (req, res) => {
       adminFirstName,
       adminLastName,
       adminEmail,
-      adminPassword
+      adminPassword,
+      resellerId // NEW: Reseller ID if tenant is referred by reseller
     } = req.body;
 
     // Validation
@@ -146,6 +148,36 @@ const registerTenant = async (req, res) => {
     // Update tenant with subscription
     tenant.subscription = subscription._id;
     await tenant.save();
+
+    // ============================================
+    // 🚀 RESELLER INTEGRATION - START
+    // ============================================
+    // Check if reseller is provided and link tenant
+    if (resellerId) {
+      try {
+        const reseller = await Reseller.findById(resellerId);
+        
+        if (reseller && reseller.status === 'approved') {
+          // Link tenant to reseller
+          tenant.reseller = reseller._id;
+          tenant.resellerCommission = reseller.commissionRate;
+          tenant.monthlySubscriptionAmount = 1000; // Default subscription amount
+          await tenant.save();
+          
+          // Add tenant to reseller's list
+          reseller.onboardedTenants.push(tenant._id);
+          await reseller.save();
+          
+          console.log(`✅ Tenant ${organizationName} linked to reseller ${reseller.firstName} ${reseller.lastName}`);
+        }
+      } catch (resellerError) {
+        console.error('Reseller linking error:', resellerError);
+        // Don't fail tenant creation if reseller linking fails
+      }
+    }
+    // ============================================
+    // 🚀 RESELLER INTEGRATION - END
+    // ============================================
 
     // Find the Super Admin system role
     const Role = require('../models/Role');
@@ -199,6 +231,16 @@ const registerTenant = async (req, res) => {
  */
 const getMe = async (req, res) => {
   try {
+    // ============================================
+    // 🚀 RESELLER SUPPORT - NEW
+    // ============================================
+    // Check if user is a reseller
+    if (req.user.userType === 'RESELLER') {
+      const reseller = await Reseller.findById(req.user._id).select('-password');
+      return successResponse(res, 200, 'Reseller profile retrieved', reseller);
+    }
+    // ============================================
+
     const user = await User.findById(req.user._id)
       .populate('roles')
       .populate('groups')

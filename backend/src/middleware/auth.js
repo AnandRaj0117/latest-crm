@@ -1,6 +1,7 @@
 const { verifyToken } = require('../utils/jwt');
 const { errorResponse } = require('../utils/response');
 const User = require('../models/User');
+const Reseller = require('../models/Reseller');
 
 /**
  * Protect routes - verify JWT token
@@ -20,6 +21,41 @@ const protect = async (req, res, next) => {
 
     // Verify token
     const decoded = verifyToken(token);
+
+    // ============================================
+    // 🚀 RESELLER SUPPORT - NEW
+    // ============================================
+    // Check if it's a reseller token
+    if (decoded.userType === 'RESELLER') {
+      // Use decoded.id (from generateToken)
+      const reseller = await Reseller.findById(decoded.id).select('-password');
+
+      if (!reseller) {
+        return errorResponse(res, 401, 'Reseller not found');
+      }
+
+      if (!reseller.isActive) {
+        return errorResponse(res, 401, 'Reseller account is deactivated');
+      }
+
+      if (reseller.status !== 'approved') {
+        return errorResponse(res, 401, `Reseller status is ${reseller.status}`);
+      }
+
+      // Attach reseller to request (similar to user)
+      req.user = {
+        _id: reseller._id,
+        email: reseller.email,
+        firstName: reseller.firstName,
+        lastName: reseller.lastName,
+        userType: 'RESELLER',
+        isActive: reseller.isActive,
+        status: reseller.status
+      };
+      
+      return next();
+    }
+    // ============================================
 
     // Get user from database with populated roles and groups (with their roles)
     const user = await User.findById(decoded.id)
@@ -83,6 +119,19 @@ const requireSaasAccess = (req, res, next) => {
 };
 
 /**
+ * ============================================
+ * 🚀 RESELLER MIDDLEWARE - NEW
+ * ============================================
+ * Ensure user is a reseller
+ */
+const requireReseller = (req, res, next) => {
+  if (req.user.userType !== 'RESELLER') {
+    return errorResponse(res, 403, 'Reseller access required');
+  }
+  next();
+};
+
+/**
  * Verify tenant context matches
  * For routes with :tenantId parameter
  */
@@ -110,5 +159,6 @@ module.exports = {
   restrictTo,
   requireTenant,
   requireSaasAccess,
+  requireReseller, // 🚀 NEW
   verifyTenantContext
 };

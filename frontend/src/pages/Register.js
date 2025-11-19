@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../styles/auth.css';
 
 const Register = () => {
   const navigate = useNavigate();
-  const { registerTenant } = useAuth();
+  const [searchParams] = useSearchParams();
+  const resellerId = searchParams.get('ref'); // Get reseller ID from URL
+
   const [formData, setFormData] = useState({
     organizationName: '',
     slug: '',
@@ -15,26 +17,18 @@ const Register = () => {
     adminLastName: '',
     adminEmail: '',
     adminPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    resellerId: resellerId || '' // Pre-fill if coming from reseller link
   });
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-
-    // Auto-generate slug from organization name
-    if (name === 'organizationName') {
-      const slug = value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      setFormData(prev => ({ ...prev, slug }));
-    }
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -48,18 +42,51 @@ const Register = () => {
     }
 
     if (formData.adminPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setError('Password must be at least 6 characters');
       return;
     }
 
     setLoading(true);
 
     try {
-      const { confirmPassword, ...registrationData } = formData;
-      await registerTenant(registrationData);
-      navigate('/dashboard');
+      const payload = {
+        organizationName: formData.organizationName,
+        slug: formData.slug,
+        contactEmail: formData.contactEmail,
+        contactPhone: formData.contactPhone,
+        adminFirstName: formData.adminFirstName,
+        adminLastName: formData.adminLastName,
+        adminEmail: formData.adminEmail,
+        adminPassword: formData.adminPassword
+      };
+
+      // Add resellerId if present
+      if (formData.resellerId) {
+        payload.resellerId = formData.resellerId;
+      }
+
+      const response = await fetch('http://localhost:4000/api/auth/register-tenant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Store token and user
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        
+        // Redirect to dashboard
+        navigate('/dashboard');
+      } else {
+        setError(data.message || 'Registration failed');
+      }
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError('Failed to register. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -67,23 +94,52 @@ const Register = () => {
 
   return (
     <div className="auth-container">
-      <div className="auth-card auth-card-large">
-        <h1 className="auth-title">Create Your Organization</h1>
-        <p className="auth-subtitle">Get started with your free trial</p>
+      <div className="auth-card" style={{ maxWidth: '600px' }}>
+        <h1 className="auth-title">Register Your Organization</h1>
+        <p className="auth-subtitle">
+          Get started with your free CRM account
+        </p>
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {resellerId && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#EFF6FF',
+            color: '#1E40AF',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            fontSize: '14px'
+          }}>
+            ✅ You're registering through a partner referral
+          </div>
+        )}
+
+        {error && (
+          <div style={{
+            padding: '12px 16px',
+            background: '#FEE2E2',
+            color: '#991B1B',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            fontSize: '14px'
+          }}>
+            ❌ {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-section">
-            <h3 className="form-section-title">Organization Details</h3>
-
+          {/* Organization Details */}
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+              Organization Details
+            </h3>
+            
             <div className="form-group">
               <label className="form-label">Organization Name *</label>
               <input
                 type="text"
                 name="organizationName"
                 className="form-input"
-                placeholder="Enter organization name"
+                placeholder="Acme Corporation"
                 value={formData.organizationName}
                 onChange={handleChange}
                 required
@@ -96,46 +152,73 @@ const Register = () => {
                 type="text"
                 name="slug"
                 className="form-input"
-                placeholder="organization-slug"
+                placeholder="acme-corp"
                 value={formData.slug}
                 onChange={handleChange}
                 required
               />
-              <small className="form-hint">Used in your organization's URL</small>
+              <small style={{ fontSize: '12px', color: '#6B7280' }}>
+                URL-friendly identifier (lowercase, no spaces)
+              </small>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Contact Email *</label>
-                <input
-                  type="email"
-                  name="contactEmail"
-                  className="form-input"
-                  placeholder="contact@company.com"
-                  value={formData.contactEmail}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Contact Phone</label>
-                <input
-                  type="tel"
-                  name="contactPhone"
-                  className="form-input"
-                  placeholder="+1 234 567 8900"
-                  value={formData.contactPhone}
-                  onChange={handleChange}
-                />
-              </div>
+            <div className="form-group">
+              <label className="form-label">Contact Email *</label>
+              <input
+                type="email"
+                name="contactEmail"
+                className="form-input"
+                placeholder="contact@acmecorp.com"
+                value={formData.contactEmail}
+                onChange={handleChange}
+                required
+              />
             </div>
+
+            <div className="form-group">
+              <label className="form-label">Contact Phone</label>
+              <input
+                type="tel"
+                name="contactPhone"
+                className="form-input"
+                placeholder="+1 234 567 8900"
+                value={formData.contactPhone}
+                onChange={handleChange}
+              />
+            </div>
+
+            {/* ============================================ */}
+            {/* 🚀 REFERRAL CODE FIELD - NEW */}
+            {/* ============================================ */}
+            <div className="form-group">
+              <label className="form-label">
+                Referral Code (Optional)
+              </label>
+              <input
+                type="text"
+                name="resellerId"
+                className="form-input"
+                placeholder="Enter referral code if you have one"
+                value={formData.resellerId}
+                onChange={handleChange}
+                disabled={!!resellerId} // Disable if coming from URL
+              />
+              {formData.resellerId && (
+                <small style={{ fontSize: '12px', color: '#059669', display: 'block', marginTop: '4px' }}>
+                  ✅ Referral code applied
+                </small>
+              )}
+            </div>
+            {/* ============================================ */}
           </div>
 
-          <div className="form-section">
-            <h3 className="form-section-title">Admin Account</h3>
+          {/* Admin User Details */}
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+              Admin User Details
+            </h3>
 
-            <div className="form-row">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
                 <label className="form-label">First Name *</label>
                 <input
@@ -169,40 +252,37 @@ const Register = () => {
                 type="email"
                 name="adminEmail"
                 className="form-input"
-                placeholder="admin@company.com"
+                placeholder="admin@acmecorp.com"
                 value={formData.adminEmail}
                 onChange={handleChange}
                 required
               />
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Password *</label>
-                <input
-                  type="password"
-                  name="adminPassword"
-                  className="form-input"
-                  placeholder="Minimum 6 characters"
-                  value={formData.adminPassword}
-                  onChange={handleChange}
-                  required
-                  minLength={6}
-                />
-              </div>
+            <div className="form-group">
+              <label className="form-label">Password *</label>
+              <input
+                type="password"
+                name="adminPassword"
+                className="form-input"
+                placeholder="Minimum 6 characters"
+                value={formData.adminPassword}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-              <div className="form-group">
-                <label className="form-label">Confirm Password *</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  className="form-input"
-                  placeholder="Re-enter password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+            <div className="form-group">
+              <label className="form-label">Confirm Password *</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                className="form-input"
+                placeholder="Re-enter password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+              />
             </div>
           </div>
 

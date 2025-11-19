@@ -1,132 +1,127 @@
 const mongoose = require('mongoose');
 
 const tenantSchema = new mongoose.Schema({
-  // Organization details
   organizationName: {
     type: String,
-    required: true,
+    required: [true, 'Organization name is required'],
     trim: true
   },
   slug: {
     type: String,
-    required: true,
+    required: [true, 'Slug is required'],
     unique: true,
     lowercase: true,
     trim: true
   },
-  domain: {
-    type: String,
-    trim: true
-  },
-  // Contact information
+  
+  // Contact Information
   contactEmail: {
     type: String,
-    required: true,
-    lowercase: true,
-    trim: true
+    required: [true, 'Contact email is required'],
+    trim: true,
+    lowercase: true
   },
   contactPhone: {
-    type: String
-  },
-  // Address
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    country: String,
-    zipCode: String
-  },
-  // Subscription details
-  subscription: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Subscription'
-  },
-  // Plan type: 'free', 'basic', 'premium', 'enterprise'
-  planType: {
     type: String,
-    enum: ['free', 'basic', 'premium', 'enterprise'],
+    trim: true
+  },
+  
+  // Business Details
+  businessType: {
+    type: String,
+    enum: ['B2B', 'B2C', 'B2B2C', 'Other'],
+    default: 'B2B'
+  },
+  industry: {
+    type: String,
+    trim: true
+  },
+  
+  // Subscription & Billing
+  subscriptionTier: {
+    type: String,
+    enum: ['free', 'basic', 'professional', 'enterprise'],
     default: 'free'
   },
-  // Features enabled for this tenant
-  enabledFeatures: [{
+  subscriptionStatus: {
+    type: String,
+    enum: ['trial', 'active', 'suspended', 'cancelled'],
+    default: 'trial'
+  },
+  subscriptionStartDate: {
+    type: Date,
+    default: Date.now
+  },
+  subscriptionEndDate: Date,
+  
+  // ============================================
+  // 🚀 RESELLER INTEGRATION - NEW
+  // ============================================
+  reseller: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Feature'
-  }],
-  // Theme customization
-  theme: {
-    primaryColor: {
-      type: String,
-      default: '#1976d2'
-    },
-    secondaryColor: {
-      type: String,
-      default: '#dc004e'
-    },
-    logo: {
-      type: String
-    },
-    favicon: {
-      type: String
-    },
-    companyName: {
-      type: String
-    }
+    ref: 'Reseller',
+    default: null
   },
-  // Settings
-  settings: {
-    maxUsers: {
-      type: Number,
-      default: 10
-    },
-    maxStorage: {
-      type: Number,
-      default: 1024 // in MB
-    },
-    allowCustomDomain: {
-      type: Boolean,
-      default: false
-    },
-    twoFactorAuth: {
-      type: Boolean,
-      default: false
-    }
+  // Commission rate at the time of tenant creation
+  commissionRate: {
+    type: Number,
+    default: 0
   },
+  // Total commission paid to reseller
+  totalCommissionPaid: {
+    type: Number,
+    default: 0
+  },
+  // Monthly subscription amount
+  monthlySubscriptionAmount: {
+    type: Number,
+    default: 0
+  },
+  // ============================================
+  
+  // Limits
+  maxUsers: {
+    type: Number,
+    default: 5
+  },
+  maxStorage: {
+    type: Number,
+    default: 1024 // MB
+  },
+  
   // Status
   isActive: {
     type: Boolean,
     default: true
   },
-  isSuspended: {
-    type: Boolean,
-    default: false
-  },
-  suspensionReason: {
-    type: String
-  },
-  // Trial information
-  trialEndsAt: {
-    type: Date
-  },
-  // Billing information
-  billingCycle: {
-    type: String,
-    enum: ['monthly', 'yearly'],
-    default: 'monthly'
-  },
-  nextBillingDate: {
-    type: Date
-  },
-  // Metadata
-  metadata: {
-    type: Map,
-    of: String
+  
+  // Branding (optional)
+  logo: String,
+  primaryColor: String,
+  
+  // Settings
+  settings: {
+    timezone: {
+      type: String,
+      default: 'UTC'
+    },
+    dateFormat: {
+      type: String,
+      default: 'DD/MM/YYYY'
+    },
+    currency: {
+      type: String,
+      default: 'USD'
+    }
   }
 }, {
   timestamps: true
 });
 
-// Index for faster queries
+// Indexes
 tenantSchema.index({ slug: 1 });
 tenantSchema.index({ isActive: 1 });
+tenantSchema.index({ subscriptionStatus: 1 });
+tenantSchema.index({ reseller: 1 }); // 🚀 NEW
 
 module.exports = mongoose.model('Tenant', tenantSchema);

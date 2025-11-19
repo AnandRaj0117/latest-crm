@@ -46,6 +46,7 @@ const SaasDashboard = () => {
           <Link to="/saas/tenants" className="nav-item">Tenants</Link>
           <Link to="/saas/subscriptions" className="nav-item">Subscriptions</Link>
           <Link to="/saas/billings" className="nav-item">Billings</Link>
+          <Link to="/saas/resellers" className="nav-item">🤝 Resellers</Link>
         </div>
       </nav>
 
@@ -122,6 +123,9 @@ const SaasDashboard = () => {
                   </Link>
                   <Link to="/saas/billings" className="btn btn-success">
                     Billing Overview
+                  </Link>
+                  <Link to="/saas/resellers" className="btn btn-warning">
+                    🤝 Manage Resellers
                   </Link>
                 </div>
               </div>

@@ -11,7 +11,6 @@ const app = express();
 // Connect to database
 connectDB();
 
-// ✅✅✅ CRITICAL: CORS MUST BE FIRST! ✅✅✅
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
@@ -27,6 +26,8 @@ const corsOptions = {
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400
 };
+
+
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
@@ -60,6 +61,12 @@ app.use('/api/features', require('./routes/features'));
 app.use('/api/subscriptions', require('./routes/subscriptions'));
 app.use('/api/billings', require('./routes/billings'));
 app.use('/api/activity-logs', require('./routes/activityLogs'));
+
+// ============================================
+// 🚀 RESELLER ROUTES - NEW
+// ============================================
+app.use('/api/resellers', require('./routes/resellers'));
+// ============================================
 
 // CRM Routes
 app.use('/api/leads', require('./routes/leads'));
@@ -95,6 +102,7 @@ app.listen(PORT, () => {
   console.log('═══════════════════════════════════════');
   console.log(`✅ Server running on http://localhost:${PORT}`);
   console.log(`✅ CORS enabled for http://localhost:3000`);
+  console.log(`✅ Reseller system enabled`);
   console.log('═══════════════════════════════════════');
 });
 
