@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/crm.css';
 
 const Meetings = () => {
@@ -32,9 +33,7 @@ const Meetings = () => {
   const loadMeetings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:4000/api/meetings?limit=100', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await apiFetch('meetings?limit=100');
       const data = await response.json();
       if (data.success) setMeetings(data.data.meetings || []);
     } catch (err) {
@@ -48,12 +47,8 @@ const Meetings = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:4000/api/meetings', {
+      const response = await apiFetch('meetings', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(formData)
       });
       const data = await response.json();

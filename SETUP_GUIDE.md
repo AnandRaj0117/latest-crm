@@ -64,7 +64,7 @@ Edit `.env` file with your preferred text editor:
 
 ```env
 # Server Configuration
-PORT=5000
+PORT=4000
 NODE_ENV=development
 
 # Database (Update if needed)
@@ -107,7 +107,7 @@ This will install:
 
 ```bash
 # Create .env file
-echo REACT_APP_API_URL=http://localhost:5000/api > .env
+echo REACT_APP_API_URL=http://localhost:4000/api > .env
 ```
 
 If you change the backend port, update the API URL accordingly.
@@ -229,7 +229,7 @@ npm run dev
 You should see:
 ```
 MongoDB Connected: localhost
-Server running in development mode on port 5000
+Server running in development mode on port 4000
 ```
 
 #### Terminal 2 - Frontend:
@@ -243,7 +243,7 @@ Your browser should automatically open to `http://localhost:3000`
 ### 8. Verify Installation
 
 1. **Backend Health Check**
-   - Open browser to: http://localhost:5000/health
+   - Open browser to: http://localhost:4000/health
    - Should see: `{"success":true,"message":"Server is running",...}`
 
 2. **Frontend**
@@ -299,7 +299,7 @@ As **SAAS Owner**:
 
 ### Issue: Port Already in Use
 
-**Error**: `Error: listen EADDRINUSE: address already in use :::5000`
+**Error**: `Error: listen EADDRINUSE: address already in use :::4000`
 
 **Solution**:
 1. Change PORT in backend `.env` to 5001 or another port
@@ -320,7 +320,7 @@ As **SAAS Owner**:
 **Error**: `Access to XMLHttpRequest has been blocked by CORS policy`
 
 **Solution**:
-1. Verify backend is running on port 5000
+1. Verify backend is running on port 4000
 2. Check CORS_ORIGIN in backend `.env` matches frontend URL
 3. Restart backend server
 
@@ -369,7 +369,7 @@ Use tools like:
 
 Example cURL request:
 ```bash
-curl http://localhost:5000/api/auth/login \
+curl http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@saasplatform.com","password":"changethispassword"}'
 ```

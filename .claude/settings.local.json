@@ -10,7 +10,8 @@
       "Bash(findstr:*)",
       "Bash(curl:*)",
       "Bash(cmd /c taskkill /F /IM node.exe)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(cmd /c taskkill /PID 20236 /F)"
     ],
     "deny": [],
     "ask": []

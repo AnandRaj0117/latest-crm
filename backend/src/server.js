@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const connectDB = require('./config/database');
+const config = require('./config/env');
 
 // Initialize express app
 const app = express();
@@ -13,7 +14,11 @@ connectDB();
 
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+    const allowedOrigins = [
+      config.corsOrigin,
+      'http://localhost:3000',
+      'http://localhost:3001'
+    ];
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -97,11 +102,12 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
+const PORT = config.port;
 app.listen(PORT, () => {
   console.log('═══════════════════════════════════════');
   console.log(`✅ Server running on http://localhost:${PORT}`);
-  console.log(`✅ CORS enabled for http://localhost:3000`);
+  console.log(`✅ Environment: ${config.nodeEnv}`);
+  console.log(`✅ CORS enabled for ${config.corsOrigin}`);
   console.log(`✅ Reseller system enabled`);
   console.log('═══════════════════════════════════════');
 });

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/crm.css';
 
 const ResellerDashboard = () => {
@@ -20,11 +21,7 @@ const ResellerDashboard = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:4000/api/resellers/dashboard', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiFetch('resellers/dashboard');
 
       const data = await response.json();
 

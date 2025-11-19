@@ -68,7 +68,7 @@ cd backend
 npm run dev
 ```
 
-Wait for: `MongoDB Connected` and `Server running on port 5000`
+Wait for: `MongoDB Connected` and `Server running on port 4000`
 
 **Terminal 2 - Frontend:**
 ```bash
@@ -255,7 +255,7 @@ net start MongoDB
 mongo
 ```
 
-### "Port 5000 already in use"
+### "Port 4000 already in use"
 ```bash
 # Change PORT in backend/.env to 5001
 # Update frontend/.env REACT_APP_API_URL to http://localhost:5001/api

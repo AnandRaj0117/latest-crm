@@ -75,7 +75,7 @@ copy .env.example .env
 
 # Frontend (optional)
 cd frontend
-echo REACT_APP_API_URL=http://localhost:5000/api > .env
+echo REACT_APP_API_URL=http://localhost:4000/api > .env
 ```
 
 ### 3. Start MongoDB (30 seconds)
@@ -184,23 +184,23 @@ After running the seeder, you can login with:
 
 ```bash
 # Login
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@saasplatform.com","password":"admin123"}'
 
 # Get current user (replace TOKEN with the token from login)
-curl http://localhost:5000/api/auth/me \
+curl http://localhost:4000/api/auth/me \
   -H "Authorization: Bearer TOKEN"
 
 # Get all users
-curl http://localhost:5000/api/users \
+curl http://localhost:4000/api/users \
   -H "Authorization: Bearer TOKEN"
 ```
 
 ### Using Postman
 
 1. Import collection from `backend/postman_collection.json` (if created)
-2. Set base URL: `http://localhost:5000/api`
+2. Set base URL: `http://localhost:4000/api`
 3. Get token from login endpoint
 4. Add token to Authorization header for other requests
 

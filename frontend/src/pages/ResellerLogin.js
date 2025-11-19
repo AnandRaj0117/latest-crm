@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/auth.css';
 
 const ResellerLogin = () => {
@@ -24,11 +25,8 @@ const ResellerLogin = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/resellers/login', {
+      const response = await apiFetch('resellers/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(formData)
       });
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/auth.css';
 
 const Register = () => {
@@ -65,11 +66,8 @@ const Register = () => {
         payload.resellerId = formData.resellerId;
       }
 
-      const response = await fetch('http://localhost:4000/api/auth/register-tenant', {
+      const response = await apiFetch('auth/register-tenant', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(payload)
       });
 

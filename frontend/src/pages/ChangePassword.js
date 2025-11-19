@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import '../styles/crm.css';
+import { apiFetch } from '../config/apiConfig';
 
 const ChangePassword = () => {
   const [formData, setFormData] = useState({
@@ -43,12 +44,8 @@ const ChangePassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/auth/change-password', {
+      const response = await apiFetch('auth/change-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
         body: JSON.stringify({
           currentPassword: formData.currentPassword,
           newPassword: formData.newPassword
@@ -64,7 +61,7 @@ const ChangePassword = () => {
           newPassword: '',
           confirmPassword: ''
         });
-        setTimeout(() => setSuccess(''), 5000);
+        setTimeout(() => setSuccess(''), 4000);
       } else {
         setError(data.message || 'Failed to change password');
       }

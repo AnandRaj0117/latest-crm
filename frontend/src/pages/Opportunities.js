@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/crm.css';
 
 const Opportunities = () => {
@@ -28,9 +29,7 @@ const Opportunities = () => {
 
   const loadOpportunities = async () => {
     try {
-        const response = await fetch('http://localhost:4000/api/opportunities?limit=100', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+        const response = await apiFetch('opportunities?limit=100');
       const data = await response.json();
       if (data.success) setOpportunities(data.data.opportunities || []);
     } catch (err) {
@@ -42,12 +41,8 @@ const Opportunities = () => {
 
   const updateOpportunityStage = async (oppId, newStage) => {
     try {
-    await fetch(`http://localhost:4000/api/opportunities/${oppId}`, {
+    await apiFetch(`opportunities/${oppId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ stage: newStage })
       });
     } catch (err) {

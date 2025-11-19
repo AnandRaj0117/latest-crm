@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/auth.css';
 
 const ResellerRegister = () => {
@@ -50,11 +51,8 @@ const ResellerRegister = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/resellers/register', {
+      const response = await apiFetch('resellers/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           ...formData,
           address: {

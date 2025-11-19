@@ -6,6 +6,7 @@ import { taskService } from '../services/taskService';
 import { noteService } from '../services/noteService';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/crm.css';
 
 const LeadDetail = () => {
@@ -126,9 +127,7 @@ const LeadDetail = () => {
 
   const loadMeetings = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/api/meetings?relatedTo=Lead&relatedToId=${id}&limit=100`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await apiFetch(`meetings?relatedTo=Lead&relatedToId=${id}&limit=100`);
       const data = await response.json();
       if (data.success) {
         setMeetings(data.data.meetings || []);
@@ -140,9 +139,7 @@ const LeadDetail = () => {
 
   const loadCalls = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/api/calls?relatedTo=Lead&relatedToId=${id}&limit=100`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await apiFetch(`calls?relatedTo=Lead&relatedToId=${id}&limit=100`);
       const data = await response.json();
       if (data.success) {
         setCalls(data.data.calls || []);
@@ -190,12 +187,8 @@ const LeadDetail = () => {
     e.preventDefault();
     try {
       setError('');
-      const response = await fetch('http://localhost:4000/api/meetings', {
+      const response = await apiFetch('meetings', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           ...meetingData,
           relatedTo: 'Lead',
@@ -221,12 +214,8 @@ const LeadDetail = () => {
     e.preventDefault();
     try {
       setError('');
-      const response = await fetch('http://localhost:4000/api/calls', {
+      const response = await apiFetch('calls', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({
           ...callData,
           relatedTo: 'Lead',

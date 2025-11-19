@@ -4,6 +4,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
 import '../styles/crm.css';
+import { apiFetch } from '../config/apiConfig';
 
 const Calls = () => {
   const navigate = useNavigate();
@@ -33,9 +34,7 @@ const Calls = () => {
   const loadCalls = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:4000/api/calls?limit=100', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await apiFetch('calls?limit=100');
       const data = await response.json();
       if (data.success) setCalls(data.data.calls || []);
     } catch (err) {
@@ -49,12 +48,8 @@ const Calls = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:4000/api/calls', {
+      const response = await apiFetch('calls', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(formData)
       });
       const data = await response.json();

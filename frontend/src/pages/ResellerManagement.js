@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/dashboard.css';
 
 const ResellerManagement = () => {
@@ -19,14 +20,11 @@ const ResellerManagement = () => {
 
   const fetchResellers = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const url = filter === 'all' 
-        ? 'http://localhost:4000/api/resellers'
-        : `http://localhost:4000/api/resellers?status=${filter}`;
+      const url = filter === 'all'
+        ? 'resellers'
+        : `resellers?status=${filter}`;
 
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await apiFetch(url);
 
       const data = await response.json();
       if (data.success) {
@@ -41,10 +39,7 @@ const ResellerManagement = () => {
 
   const fetchResellerDetails = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/resellers/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await apiFetch(`resellers/${id}`);
 
       const data = await response.json();
       if (data.success) {
@@ -57,13 +52,8 @@ const ResellerManagement = () => {
 
   const handleStatusUpdate = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/resellers/${selectedReseller.reseller._id}/status`, {
+      const response = await apiFetch(`resellers/${selectedReseller.reseller._id}/status`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ status: actionData.status })
       });
 
@@ -82,13 +72,8 @@ const ResellerManagement = () => {
 
   const handleCommissionUpdate = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/api/resellers/${selectedReseller.reseller._id}/commission`, {
+      const response = await apiFetch(`resellers/${selectedReseller.reseller._id}/commission`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify({ commissionRate: parseFloat(actionData.commissionRate) })
       });
 

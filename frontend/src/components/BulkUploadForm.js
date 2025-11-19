@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/crm.css';
+import { apiFetch } from '../config/apiConfig';
 
 const BulkUploadForm = ({ onClose, onSuccess }) => {
   const [file, setFile] = useState(null);
@@ -10,9 +11,7 @@ const BulkUploadForm = ({ onClose, onSuccess }) => {
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/leads/download-template', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await apiFetch('leads/download-template');
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -88,11 +87,8 @@ const BulkUploadForm = ({ onClose, onSuccess }) => {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:4000/api/leads/bulk-upload', {
+      const response = await apiFetch('leads/bulk-upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
         body: formData
       });
 

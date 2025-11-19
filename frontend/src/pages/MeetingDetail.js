@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/common/Modal';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/crm.css';
 
 const MeetingDetail = () => {
@@ -33,9 +34,7 @@ const MeetingDetail = () => {
   const loadMeeting = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/meetings/${id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
+      const response = await apiFetch(`meetings/${id}`);
       const data = await response.json();
       if (data.success) {
         setMeeting(data.data);
@@ -58,12 +57,8 @@ const MeetingDetail = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:4000/api/meetings/${id}`, {
+      const response = await apiFetch(`meetings/${id}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(formData)
       });
       const data = await response.json();
@@ -80,9 +75,8 @@ const MeetingDetail = () => {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`http://localhost:4000/api/meetings/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const response = await apiFetch(`meetings/${id}`, {
+        method: 'DELETE'
       });
       if (response.ok) {
         setSuccess('Meeting deleted!');

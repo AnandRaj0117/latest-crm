@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiFetch } from '../config/apiConfig';
 import '../styles/auth.css';
 
 const ForgotPassword = () => {
@@ -20,9 +21,8 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/auth/forgot-password', {
+      const response = await apiFetch('auth/forgot-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
 
@@ -48,9 +48,8 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/auth/verify-otp', {
+      const response = await apiFetch('auth/verify-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp })
       });
 
@@ -87,9 +86,8 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:4000/api/auth/reset-password', {
+      const response = await apiFetch('auth/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, newPassword: password })
       });
 

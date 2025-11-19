@@ -781,7 +781,7 @@ const downloadSampleTemplate = async (req, res) => {
         'Country': 'India',
         'Zip Code': '110001',
         'No. of Employees': '50',
-        'Annual Revenue': '5000000',
+        'Annual Revenue': '4000000',
         'Description': 'Looking for marketing automation tools'
       }
     ];

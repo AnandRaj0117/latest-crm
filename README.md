@@ -141,7 +141,7 @@ cd frontend
 npm install
 
 # Create .env file (optional)
-echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
+echo "REACT_APP_API_URL=http://localhost:4000/api" > .env
 ```
 
 4. **Start MongoDB**
@@ -167,7 +167,7 @@ npm start
 
 The application will be available at:
 - Frontend: http://localhost:3000
-- Backend: http://localhost:5000
+- Backend: http://localhost:4000
 
 ### Initial Setup
 

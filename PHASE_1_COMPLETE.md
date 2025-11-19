@@ -164,7 +164,7 @@
 cd backend
 npm run dev
 ```
-Expected output: "Server running on port 5000"
+Expected output: "Server running on port 4000"
 
 ### 2. Start Frontend:
 ```bash
